@@ -532,7 +532,8 @@ function renderSidebarReviews(review) {
     const stars = r.rating_value != null
       ? `${"★".repeat(Math.round(r.rating_value))}${"☆".repeat(5 - Math.round(r.rating_value))}`
       : "";
-    const dateStr = r.publication_date || "";
+    const rawDate = r.publication_date || "";
+    const dateStr = rawDate ? rawDate.slice(0, 7) : "";
 
     html += `
       <div class="review-card">
