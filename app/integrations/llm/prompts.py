@@ -169,6 +169,7 @@ Write your response in Markdown. Follow this structure exactly:
 4. A final line starting with "**Next steps:**" suggesting what the user could ask next.
 
 Rules:
+- Always write in English, regardless of the language the user writes in.
 - Prioritize product-specific features and advantages over generic price/rating commentary.
 - Only use facts from the provided data. NEVER invent specifications or features not present in the input.
 - If "features" or "specs" are not available for a product, do your best with the available data but acknowledge the limitation.
