@@ -13,6 +13,6 @@ COPY . .
 
 RUN mkdir -p /app/data/logs /app/data/events
 
-EXPOSE 8000
+EXPOSE 5060
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5060"]

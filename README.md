@@ -13,10 +13,10 @@ cp .env.example .env
 # Edit .env with your actual API keys
 
 # 3. Run the server
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 5060
 
 # 4. Open the test page
-# http://localhost:8000
+# http://localhost:5060
 ```
 
 ## Docker Deployment (EC2)
@@ -37,7 +37,7 @@ docker compose up -d --build
 docker compose ps
 docker compose logs -f
 
-# The service is available at http://<your-ec2-ip>:8000
+# The service is available at http://<your-ec2-ip>:5060
 ```
 
 To stop: `docker compose down`
