@@ -30,11 +30,16 @@ async def local_cache_read(state: AgentState) -> dict:
             cache_hit_products.append(entry["base_card"])
             cache_can_answer = True
 
-    # Check if query is similar to last and we have enough cached candidates
+    # Reuse cached candidates only when keyword is exactly the same
+    # and no new filters were added (refinement = new search)
     if not cache_can_answer and last_query and catalog:
-        kw = query_plan.get("keyword", "").lower()
-        last_kw = (last_query.get("keyword") or "").lower()
-        if kw and last_kw and (kw in last_kw or last_kw in kw):
+        kw = query_plan.get("keyword", "").lower().strip()
+        last_kw = (last_query.get("keyword") or "").lower().strip()
+        cur_filters = query_plan.get("filters") or {}
+        last_filters = last_query.get("filters") or {}
+        same_keyword = kw and last_kw and kw == last_kw
+        same_filters = cur_filters == last_filters
+        if same_keyword and same_filters:
             fresh_count = sum(
                 1 for item in catalog
                 if cache_store.is_fresh(item.get("product_ref", ""), "base_card")
@@ -45,6 +50,9 @@ async def local_cache_read(state: AgentState) -> dict:
                     cache_store.get_segment(item["product_ref"], "base_card") or item
                     for item in catalog[:30]
                 ]
+                log.info("  [local_cache_read] exact keyword+filters match, reusing %d cached", len(cache_hit_products))
+        else:
+            log.info("  [local_cache_read] keyword or filters changed (%r->%r), forcing fresh search", last_kw, kw)
 
     # Check stale usability
     if not cache_can_answer and catalog:
