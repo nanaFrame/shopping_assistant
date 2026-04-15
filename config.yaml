@@ -1,0 +1,42 @@
+server:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins: ["*"]
+
+llm:
+  fast_model: "gemini-3-flash-preview"
+  quality_model: "gemini-3-flash-preview"
+  temperature: 0.3
+  max_retries: 2
+  timeout_seconds: 30
+
+dataforseo:
+  base_url: "https://api.dataforseo.com/v3"
+  timeout_seconds: 15
+  max_retries: 2
+  default_locale: "en"
+  default_language: "en"
+
+cache:
+  sqlite_path: "./data/cache.db"
+  json_legacy_path: "./data/cache"
+  ttl:
+    base_card_hours: 24
+    product_info_days: 7
+    sellers_hours: 6
+    reviews_days: 7
+
+storage:
+  sqlite_path: "./data/sessions.db"
+  event_log_path: "./data/events"
+
+stream:
+  heartbeat_interval_seconds: 20
+  buffer_max_events: 1000
+  event_version: "v1"
+
+agent:
+  max_candidates: 30
+  top_n: 3
+  detail_fetch_timeout_seconds: 30
+  max_concurrent_fetches: 9

@@ -1,0 +1,137 @@
+"""DetailFetch — concurrently fetches missing fields for Top 3 products."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+
+from app.agent.state import AgentState
+from app.config import get_settings
+
+log = logging.getLogger(__name__)
+
+
+async def detail_fetch(state: AgentState) -> dict:
+    recommended = state.get("recommended_products") or []
+    registry = dict(state.get("product_field_registry") or {})
+    settings = get_settings()
+    timeout = settings.agent.detail_fetch_timeout_seconds
+    max_concurrent = settings.agent.max_concurrent_fetches
+
+    enrichment_plan: dict = {"needed": {}, "completed": {}, "failed": {}}
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    from app.integrations.dataforseo.gateway import dataforseo_gateway
+    from app.storage.cache_store import cache_store
+
+    product_ids = []
+    for p in recommended:
+        ref = p.get("product_ref", "")
+        ids = _extract_ids(p, ref)
+        product_ids.append((ref, ids))
+
+    async def _fetch_product_info(ref: str, ids: dict) -> tuple[str, str, dict | None]:
+        if not (ids.get("product_id") or ids.get("gid") or ids.get("data_docid")):
+            return ref, "product_info", None
+        async with semaphore:
+            try:
+                info = await dataforseo_gateway.get_product_info(ids)
+                if info:
+                    cache_store.update_segment(
+                        ref, "product_info_snapshot", info,
+                        freshness_key="product_info_at",
+                    )
+                return ref, "product_info", info
+            except Exception as e:
+                log.warning("Product info fetch failed for %s: %s", ref, e)
+                return ref, "product_info", None
+
+    async def _fetch_sellers(ref: str, ids: dict) -> tuple[str, str, dict | None]:
+        if not (ids.get("product_id") or ids.get("gid")):
+            return ref, "sellers", None
+        async with semaphore:
+            try:
+                sellers = await dataforseo_gateway.get_sellers(ids)
+                if sellers:
+                    cache_store.update_segment(
+                        ref, "sellers_snapshot", {"items": sellers},
+                        freshness_key="sellers_at",
+                    )
+                return ref, "sellers", sellers
+            except Exception as e:
+                log.warning("Sellers fetch failed for %s: %s", ref, e)
+                return ref, "sellers", None
+
+    async def _fetch_reviews(ref: str, ids: dict) -> tuple[str, str, dict | None]:
+        if not ids.get("gid"):
+            return ref, "reviews", None
+        async with semaphore:
+            try:
+                reviews = await dataforseo_gateway.get_reviews(ids["gid"])
+                if reviews:
+                    cache_store.update_segment(
+                        ref, "reviews_snapshot", reviews,
+                        freshness_key="reviews_at",
+                    )
+                return ref, "reviews", reviews
+            except Exception as e:
+                log.warning("Reviews fetch failed for %s: %s", ref, e)
+                return ref, "reviews", None
+
+    all_tasks = []
+    for ref, ids in product_ids:
+        all_tasks.append(_fetch_product_info(ref, ids))
+        all_tasks.append(_fetch_sellers(ref, ids))
+        all_tasks.append(_fetch_reviews(ref, ids))
+
+    log.info("  [detail_fetch] launching %d concurrent requests for %d products",
+             len(all_tasks), len(recommended))
+
+    try:
+        results = await asyncio.wait_for(
+            asyncio.gather(*all_tasks, return_exceptions=True),
+            timeout=timeout,
+        )
+    except asyncio.TimeoutError:
+        log.warning("DetailFetch timed out after %ds", timeout)
+        results = []
+
+    for result in results:
+        if isinstance(result, Exception):
+            log.warning("Detail fetch task error: %s", result)
+            continue
+        ref, endpoint, data = result
+        if data is None:
+            continue
+
+        patches = enrichment_plan["completed"].setdefault(ref, {})
+        if endpoint == "product_info":
+            patches.update(data)
+        elif endpoint == "sellers":
+            patches["seller_summary"] = data
+            patches["_source"] = "sellers"
+        elif endpoint == "reviews":
+            patches["review_summary"] = data
+
+    for ref, patches in enrichment_plan["completed"].items():
+        registry.setdefault(ref, {}).update({
+            k: True for k in patches if not k.startswith("_")
+        })
+
+    return {
+        "enrichment_plan": enrichment_plan,
+        "product_field_registry": registry,
+    }
+
+
+def _extract_ids(product: dict, ref: str) -> dict:
+    ids: dict = {}
+    if product.get("product_id"):
+        ids["product_id"] = product["product_id"]
+    elif "pid:" in ref:
+        ids["product_id"] = ref.split("pid:")[-1]
+    if product.get("gid"):
+        ids["gid"] = product["gid"]
+    if product.get("data_docid"):
+        ids["data_docid"] = product["data_docid"]
+    return ids

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shopping Assistant — Test Page</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css?v=6" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>Shopping Assistant</h1>
+      <span id="sessionBadge" class="badge badge-muted" style="display:none"></span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Chat history -->
+    <div id="chatHistory" class="chat-history"></div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <input id="msgInput" type="text" placeholder="Tell me what you're looking for..." autocomplete="off" />
+      <button id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+
+    <!-- Status bar -->
+    <div id="statusBar" class="status-bar"></div>
+
+    <!-- Top 3 cards -->
+    <div id="top3Section" class="section" style="display:none">
+      <h2>Top Recommendations</h2>
+      <div id="top3Grid" class="card-grid"></div>
+    </div>
+
+    <!-- LLM streamed answer (Markdown) -->
+    <div id="answerSection" class="section" style="display:none">
+      <h2>Analysis</h2>
+      <div id="answerContent" class="answer-content markdown-body"></div>
+    </div>
+
+    <!-- Legacy sections (hidden, kept for backward compat) -->
+    <div id="introSection" style="display:none"><div id="introText"></div></div>
+    <div id="candidateSection" style="display:none"><div id="candidateGrid"></div></div>
+    <div id="comparisonSection" style="display:none"><div id="comparisonContainer"></div></div>
+    <div id="reasonSection" style="display:none"><div id="reasonContainer"></div></div>
+    <div id="followupSection" style="display:none"><div id="followupText"></div></div>
+
+    <!-- Event log -->
+    <details class="section">
+      <summary class="log-toggle">Event Log</summary>
+      <div id="eventLog" class="event-log"></div>
+    </details>
+  </main>
+
+  <!-- Product detail sidebar -->
+  <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+  <div id="sidebarPanel" class="sidebar-panel">
+    <div class="sidebar-header">
+      <h3 id="sidebarTitle"></h3>
+      <button class="sidebar-close" onclick="closeSidebar()">&times;</button>
+    </div>
+    <div class="sidebar-body">
+      <div id="sidebarSellers" class="sidebar-section"></div>
+      <div id="sidebarReviews" class="sidebar-section"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="/static/app.js?v=6"></script>
+</body>
+</html>
