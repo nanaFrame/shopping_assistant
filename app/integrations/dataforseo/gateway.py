@@ -50,7 +50,7 @@ class DataForSeoGateway:
             task["search_param"] = f["search_param"]
 
         path = "/merchant/google/products/task_post"
-        log.info("  [DataForSEO] search_products keyword=%r location=%d lang=%s", keyword, location_code, lang)
+        log.info("  [DataForSEO] search_products task=%s", task)
         data = await dataforseo_client.post(path, [task])
         task_id = _extract_task_id(data)
         if not task_id:
