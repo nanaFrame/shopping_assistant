@@ -535,6 +535,7 @@ function renderSidebarReviews(review) {
     const rawDate = r.publication_date || "";
     const dateStr = rawDate ? rawDate.slice(0, 7) : "";
 
+    const rid = `rev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     html += `
       <div class="review-card">
         <div class="review-header">
@@ -543,11 +544,24 @@ function renderSidebarReviews(review) {
           ${dateStr ? `<span class="review-date">${esc(dateStr)}</span>` : ""}
         </div>
         ${r.title ? `<div class="review-title">${esc(r.title)}</div>` : ""}
-        ${r.text ? `<div class="review-text">${esc(r.text)}</div>` : ""}
+        ${r.text ? `<div class="review-text clamped" id="${rid}">${esc(r.text)}</div>` : ""}
       </div>`;
   }
 
   el.innerHTML = html;
+
+  el.querySelectorAll(".review-text.clamped").forEach((txt) => {
+    if (txt.scrollHeight > txt.clientHeight) {
+      const btn = document.createElement("button");
+      btn.className = "review-toggle";
+      btn.textContent = "Show more";
+      btn.onclick = () => {
+        const expanded = txt.classList.toggle("clamped");
+        btn.textContent = expanded ? "Show more" : "Show less";
+      };
+      txt.parentElement.appendChild(btn);
+    }
+  });
 }
 
 // ── Init ─────────────────────────────────────────────────────

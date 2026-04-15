@@ -691,10 +691,24 @@ main {
   font-size: 12px;
   color: var(--text-muted);
   line-height: 1.6;
+}
+.review-text.clamped {
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.review-toggle {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 0 0;
+  font-weight: 500;
+}
+.review-toggle:hover {
+  text-decoration: underline;
 }
 
 .review-summary-bar {
