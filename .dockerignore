@@ -1,0 +1,17 @@
+.git
+.cursor
+.vscode
+.idea
+__pycache__
+*.py[cod]
+.env
+data/*.db
+data/logs/
+data/events/
+data/cache/
+.venv
+venv
+env
+*.egg-info
+dist
+build

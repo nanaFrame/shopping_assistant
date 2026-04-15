@@ -19,6 +19,30 @@ uvicorn app.main:app --reload --port 8000
 # http://localhost:8000
 ```
 
+## Docker Deployment (EC2)
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/nanaFrame/shopping_assistant.git
+cd shopping_assistant
+
+# 2. Configure secrets
+cp .env.example .env
+# Edit .env with your actual API keys
+
+# 3. Build and run
+docker compose up -d --build
+
+# 4. Check status
+docker compose ps
+docker compose logs -f
+
+# The service is available at http://<your-ec2-ip>:8000
+```
+
+To stop: `docker compose down`
+To update: `git pull && docker compose up -d --build`
+
 ## Configuration
 
 - **`.env`** — Sensitive credentials (API keys, passwords)
@@ -34,7 +58,7 @@ app/
   application/         # Service layer (chat, session, stream)
   agent/               # LangGraph state graph + 15 nodes
   integrations/        # DataForSEO + LLM gateways
-  storage/             # SQLite sessions, JSON cache, event buffer
+  storage/             # SQLite sessions + cache, event buffer
   domain/              # Models, events, identifiers
   web/test_page/       # Built-in test UI
 ```
