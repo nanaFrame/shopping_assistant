@@ -15,6 +15,7 @@ const state = {
   lastSeq: 0,
   answerMarkdown: "",
   answerRenderTimer: null,
+  activeSidebarRef: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -149,6 +150,9 @@ function handleProductPatch(evt) {
     }
     renderCandidates();
     renderTop3();
+    if (state.activeSidebarRef === ref) {
+      refreshSidebar();
+    }
   } else {
     if (!state.pendingPatchBuffer[ref]) state.pendingPatchBuffer[ref] = [];
     state.pendingPatchBuffer[ref].push(evt);
@@ -227,6 +231,7 @@ function resetStreamUI() {
   state.lastSeq = 0;
   state.answerMarkdown = "";
   state.answerRenderTimer = null;
+  state.activeSidebarRef = null;
 
   $("top3Grid").innerHTML = "";
   $("answerContent").innerHTML = "";
@@ -236,6 +241,9 @@ function resetStreamUI() {
   if ($("reasonContainer")) $("reasonContainer").innerHTML = "";
   if ($("introText")) $("introText").textContent = "";
   if ($("followupText")) $("followupText").textContent = "";
+  if ($("sidebarSellers")) $("sidebarSellers").innerHTML = "";
+  if ($("sidebarReviews")) $("sidebarReviews").innerHTML = "";
+  closeSidebar();
 
   for (const id of ["candidateSection", "top3Section", "comparisonSection", "reasonSection", "introSection", "followupSection", "answerSection"]) {
     $(id).style.display = "none";
@@ -415,18 +423,25 @@ function renderReasons() {
 
 // ── Sidebar ──────────────────────────────────────────────────
 function openSidebar(ref) {
+  state.activeSidebarRef = ref;
+  refreshSidebar();
+  $("sidebarOverlay").classList.add("open");
+  $("sidebarPanel").classList.add("open");
+}
+
+function refreshSidebar() {
+  const ref = state.activeSidebarRef;
+  if (!ref) return;
   const card = state.candidateMap[ref];
   if (!card) return;
 
   $("sidebarTitle").textContent = card.title || "Product Details";
   renderSidebarSellers(card.seller_summary || [], card);
   renderSidebarReviews(card.review_summary || {});
-
-  $("sidebarOverlay").classList.add("open");
-  $("sidebarPanel").classList.add("open");
 }
 
 function closeSidebar() {
+  state.activeSidebarRef = null;
   $("sidebarOverlay").classList.remove("open");
   $("sidebarPanel").classList.remove("open");
 }
