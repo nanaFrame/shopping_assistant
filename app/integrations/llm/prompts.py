@@ -30,7 +30,8 @@ Output JSON schema:
 Rules:
 1. Do not turn guesses into hard_constraints.
 2. If the user is unclear, set clarification_needed=true.
-3. Return ONLY valid JSON, no explanation."""
+3. ALL output values (user_goal, must_have, preferred_traits, clarification_question, etc.) MUST be in English, regardless of the language the user writes in.
+4. Return ONLY valid JSON, no explanation."""
 
 QUERY_BUILD_PROMPT = """Task: Build a search plan from user requirements.
 
@@ -51,8 +52,9 @@ Output JSON schema:
 
 Rules:
 1. Keep keywords concise and search-friendly.
-2. Do not output raw DataForSEO parameters.
-3. Return ONLY valid JSON."""
+2. The "keyword" MUST always be in English, even if the user writes in another language. Translate the intent into an English search query.
+3. Do not output raw DataForSEO parameters.
+4. Return ONLY valid JSON."""
 
 CANDIDATE_SCORE_PROMPT = """Task: Score candidate products against user requirements.
 
