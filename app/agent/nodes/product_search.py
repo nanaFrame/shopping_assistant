@@ -9,6 +9,20 @@ from app.agent.state import AgentState
 log = logging.getLogger(__name__)
 
 
+def _price_in_range(price, lo, hi) -> bool:
+    if price is None:
+        return True
+    try:
+        p = float(price)
+    except (TypeError, ValueError):
+        return True
+    if lo is not None and p < float(lo):
+        return False
+    if hi is not None and p > float(hi):
+        return False
+    return True
+
+
 async def product_search(state: AgentState) -> dict:
     query_plan = state.get("query_plan") or {}
     keyword = query_plan.get("keyword", state.get("user_message", ""))
@@ -21,6 +35,22 @@ async def product_search(state: AgentState) -> dict:
             keyword=keyword,
             filters=filters,
         )
+
+        price_min = filters.get("price_min")
+        price_max = filters.get("price_max")
+        if price_min is not None or price_max is not None:
+            before = len(candidates)
+            filtered = [
+                c for c in candidates
+                if _price_in_range(c.get("price_current"), price_min, price_max)
+            ]
+            log.info("  [product_search] price filter (%s–%s) -> %d/%d passed",
+                     price_min, price_max, len(filtered), before)
+            if filtered:
+                candidates = filtered
+            else:
+                log.info("  [product_search] no products in price range, keeping all %d", before)
+
         catalog_additions = [
             {"product_ref": c.get("product_ref"), "title": c.get("title")}
             for c in candidates
