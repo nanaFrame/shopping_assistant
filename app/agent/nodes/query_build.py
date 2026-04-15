@@ -16,6 +16,20 @@ async def query_build(state: AgentState) -> dict:
     hard = state.get("hard_constraints") or {}
     soft = state.get("soft_preferences") or {}
 
+    if intent_type == "comparison" and (intent.get("comparison_refs") or []):
+        query_plan = {
+            "query_mode": "comparison",
+            "keyword": "",
+            "filters": {},
+            "required_fields": [],
+            "target_product_ref": None,
+        }
+        log.info(
+            "  [query_build] comparison shortcut -> refs=%s",
+            intent.get("comparison_refs") or [],
+        )
+        return {"query_plan": query_plan}
+
     try:
         from app.integrations.llm.gateway import llm_gateway
         result = await llm_gateway.query_build_assist(

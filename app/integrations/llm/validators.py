@@ -23,6 +23,11 @@ def validate_intent_output(data: dict[str, Any]) -> dict[str, Any]:
     valid_types = {"discovery", "refinement", "targeted", "comparison", "clarify"}
     if data.get("intent_type") not in valid_types:
         data["intent_type"] = "discovery"
+    comparison_refs = data.get("comparison_refs")
+    if not isinstance(comparison_refs, list):
+        data["comparison_refs"] = []
+    else:
+        data["comparison_refs"] = [str(ref) for ref in comparison_refs if ref]
     return data
 
 

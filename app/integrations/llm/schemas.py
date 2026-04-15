@@ -13,6 +13,7 @@ class IntentParseInput(BaseModel):
     message: str
     session_summary: str = ""
     mentioned_products: list[str] = Field(default_factory=list)
+    recommendation_history: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class IntentParseOutput(BaseModel):
@@ -23,6 +24,7 @@ class IntentParseOutput(BaseModel):
     needs_external_search: bool = True
     needs_followup_resolution: bool = False
     followup_target_hint: str | None = None
+    comparison_refs: list[str] = Field(default_factory=list)
     clarification_needed: bool = False
     clarification_question: str | None = None
 

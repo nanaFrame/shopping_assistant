@@ -13,6 +13,8 @@ INTENT_PARSE_PROMPT = """Task: Identify the user's intent and extract structured
 User message: {message}
 Session summary: {session_summary}
 Previously mentioned products: {mentioned_products}
+Recommendation history:
+{recommendation_history}
 
 Output JSON schema:
 {{
@@ -23,6 +25,7 @@ Output JSON schema:
   "needs_external_search": true/false,
   "needs_followup_resolution": true/false,
   "followup_target_hint": null or "<product ref>",
+  "comparison_refs": ["<product ref>"],
   "clarification_needed": true/false,
   "clarification_question": null or "<question>"
 }}
@@ -31,7 +34,8 @@ Rules:
 1. Do not turn guesses into hard_constraints.
 2. If the user is unclear, set clarification_needed=true.
 3. ALL output values (user_goal, must_have, preferred_traits, clarification_question, etc.) MUST be in English, regardless of the language the user writes in.
-4. Return ONLY valid JSON, no explanation."""
+4. If the user is comparing products that were recommended in previous turns, resolve phrases like "the first two", "No.1 vs No.2", or "session 1 and session 2 products" into exact product refs via comparison_refs.
+5. Return ONLY valid JSON, no explanation."""
 
 QUERY_BUILD_PROMPT = """Task: Build a search plan from user requirements.
 
@@ -174,4 +178,39 @@ Rules:
 - Only use facts from the provided data. NEVER invent specifications or features not present in the input.
 - If "features" or "specs" are not available for a product, do your best with the available data but acknowledge the limitation.
 - Keep the tone conversational and helpful.
+- Output ONLY Markdown, no JSON, no code fences around the whole response."""
+
+COMPARISON_STREAM_PROMPT = """You are a helpful shopping assistant comparing products that were already selected in earlier turns.
+
+User question:
+{message}
+
+Selected products (may include product cards, features, specs, sellers, and reviews):
+{products}
+
+User requirements: {user_requirements}
+Hard constraints: {hard_constraints}
+Soft preferences: {soft_preferences}
+
+Write your response in Markdown. Follow this structure exactly:
+
+1. A brief opening paragraph that answers the user's comparison question directly.
+
+2. A comparison table in Markdown format:
+   | Dimension | <Product 1 short name> | <Product 2 short name> |
+   Add more columns if there are more products.
+   Include dimensions that are relevant to the user's question, plus Price and Rating when available.
+
+3. A section named "## Verdict" that gives a clear recommendation and explains why it best matches the user's goal.
+
+4. A section named "## Trade-offs" that explains what each alternative still does well and where it may be weaker.
+
+5. A final line starting with "**Next steps:**" suggesting a useful follow-up question.
+
+Rules:
+- Always write in English, regardless of the language the user writes in.
+- Answer the user's actual comparison goal first (for example marathon suitability, cushioning, value, durability, weight, etc.).
+- Use detailed product facts when available: features, specs, description, seller details, and reviews.
+- Only use facts from the provided data. NEVER invent specifications, prices, or review claims.
+- If some data is missing, acknowledge the limitation instead of guessing.
 - Output ONLY Markdown, no JSON, no code fences around the whole response."""

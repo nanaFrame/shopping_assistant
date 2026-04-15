@@ -15,6 +15,7 @@ from app.integrations.llm.prompts import (
     REASON_GENERATE_PROMPT,
     ANSWER_SUMMARIZE_PROMPT,
     ANSWER_STREAM_PROMPT,
+    COMPARISON_STREAM_PROMPT,
 )
 from app.integrations.llm.validators import (
     parse_json_response,
@@ -85,6 +86,30 @@ def _extract_text(response) -> str:
     return ""
 
 
+def _format_recommendation_history(history: list[dict[str, Any]] | None) -> str:
+    entries = history or []
+    if not entries:
+        return "None"
+
+    lines: list[str] = []
+    for item in entries[-5:]:
+        turn = item.get("turn", "?")
+        keyword = item.get("keyword") or ""
+        header = f"Turn {turn}"
+        if keyword:
+            header += f" | keyword: {keyword}"
+        lines.append(header)
+        for product in item.get("products") or []:
+            rank = product.get("rank", "?")
+            title = product.get("title") or "Unknown product"
+            ref = product.get("product_ref") or ""
+            price = product.get("price")
+            currency = product.get("currency") or ""
+            price_part = f" | price: {currency} {price}" if price is not None else ""
+            lines.append(f"- #{rank} {title} | ref: {ref}{price_part}")
+    return "\n".join(lines)
+
+
 async def _call_model(
     model_type: str, prompt: str, max_retries: int | None = None
 ) -> dict[str, Any]:
@@ -147,11 +172,13 @@ class LlmGateway:
         message: str,
         session_summary: str = "",
         mentioned_products: list[str] | None = None,
+        recommendation_history: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         prompt = INTENT_PARSE_PROMPT.format(
             message=message,
             session_summary=session_summary,
             mentioned_products=json.dumps(mentioned_products or []),
+            recommendation_history=_format_recommendation_history(recommendation_history),
         )
         result = await _call_model("fast", prompt)
         return validate_intent_output(result)
@@ -180,7 +207,7 @@ class LlmGateway:
                 **(result.get("optional_filters") or {}),
             },
             "required_fields": ["title", "price_current", "image_url"],
-            "target_product_ref": None,
+            "target_product_ref": result.get("followup_target_hint"),
         }
 
     async def candidate_score(
@@ -317,6 +344,39 @@ class LlmGateway:
                 lp["description"] = p["description_full"][:500]
             light_products.append(lp)
         prompt = ANSWER_STREAM_PROMPT.format(
+            products=json.dumps(light_products, indent=2),
+            user_requirements=json.dumps(user_requirements),
+            hard_constraints=json.dumps(hard_constraints),
+            soft_preferences=json.dumps(soft_preferences),
+        )
+        async for chunk in _stream_model("quality", prompt):
+            yield chunk
+
+    async def comparison_stream(
+        self,
+        message: str,
+        products: list[dict[str, Any]],
+        user_requirements: dict[str, Any],
+        hard_constraints: dict[str, Any],
+        soft_preferences: dict[str, Any],
+    ) -> AsyncIterator[str]:
+        light_products = []
+        for p in products:
+            lp: dict[str, Any] = {
+                k: p.get(k)
+                for k in (
+                    "product_ref", "title", "brand", "price_current", "currency",
+                    "product_rating_value", "reviews_count", "badge", "rank",
+                    "seller_name", "domain", "description_full", "feature_bullets",
+                    "spec_highlights", "seller_summary", "review_summary",
+                )
+            }
+            if p.get("description_excerpt") and not lp.get("description_full"):
+                lp["description_excerpt"] = p["description_excerpt"]
+            light_products.append(lp)
+
+        prompt = COMPARISON_STREAM_PROMPT.format(
+            message=message,
             products=json.dumps(light_products, indent=2),
             user_requirements=json.dumps(user_requirements),
             hard_constraints=json.dumps(hard_constraints),

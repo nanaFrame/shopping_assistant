@@ -25,7 +25,7 @@ def _load_yaml() -> dict[str, Any]:
 
 class ServerConfig(BaseModel):
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = 6010
     cors_origins: list[str] = ["*"]
 
 

@@ -10,6 +10,7 @@ async def memory_update(state: AgentState) -> dict:
     query_plan = state.get("query_plan")
     recommended = state.get("recommended_products") or []
     catalog = list(state.get("product_catalog") or [])
+    recommendation_history = list(state.get("recommendation_history") or [])
 
     # Update mentioned products with newly recommended refs
     mentioned = list(state.get("mentioned_products") or [])
@@ -27,6 +28,25 @@ async def memory_update(state: AgentState) -> dict:
         summary_parts.append(f"Recommended: {', '.join(titles)}")
     new_summary = " | ".join(summary_parts)[-2000:]
 
+    if recommended:
+        recommendation_history.append({
+            "turn": len(recommendation_history) + 1,
+            "turn_id": state.get("turn_id"),
+            "keyword": (query_plan or {}).get("keyword", ""),
+            "products": [
+                {
+                    "rank": idx,
+                    "product_ref": p.get("product_ref", ""),
+                    "title": p.get("title", ""),
+                    "price": p.get("price_current"),
+                    "currency": p.get("currency"),
+                }
+                for idx, p in enumerate(recommended[:3], start=1)
+                if p.get("product_ref")
+            ],
+        })
+        recommendation_history = recommendation_history[-5:]
+
     # Persist to session store
     session_id = state.get("session_id", "")
     if session_id:
@@ -34,11 +54,13 @@ async def memory_update(state: AgentState) -> dict:
             "session_summary": new_summary,
             "mentioned_products": mentioned,
             "product_catalog": catalog[-50:],
+            "recommendation_history": recommendation_history,
             "last_query": query_plan,
         })
 
     return {
         "last_query": query_plan,
         "mentioned_products": mentioned,
+        "recommendation_history": recommendation_history,
         "session_summary": new_summary,
     }

@@ -13,8 +13,10 @@ const state = {
   pendingPatchBuffer: {},
   seenEventIds: new Set(),
   lastSeq: 0,
-  answerMarkdown: "",
+  currentAnswerMarkdown: "",
   answerRenderTimer: null,
+  currentAnswerTarget: null,
+  currentAnswerBody: null,
   activeSidebarRef: null,
 };
 
@@ -25,11 +27,12 @@ async function sendMessage() {
   const input = $("msgInput");
   const msg = input.value.trim();
   if (!msg) return;
+  const preserveOutput = looksLikeComparison(msg);
 
   $("sendBtn").disabled = true;
   input.value = "";
   addChatBubble(msg);
-  resetStreamUI();
+  resetStreamUI({ preserveOutput, userMessage: msg });
 
   try {
     if (!sessionId) {
@@ -130,7 +133,7 @@ function handleTop3Card(evt) {
 function handleTextChunk(evt) {
   const text = evt.payload.text || "";
   if (!text) return;
-  state.answerMarkdown += text;
+  state.currentAnswerMarkdown += text;
   $("answerSection").style.display = "";
   scheduleAnswerRender();
 }
@@ -195,7 +198,7 @@ function handleError(evt) {
 
 function handleDone() {
   showStatus("done", "Completed");
-  if (state.answerMarkdown) renderAnswer();
+  if (state.currentAnswerMarkdown) renderAnswer();
   if (eventSource) eventSource.close();
   $("sendBtn").disabled = false;
 }
@@ -221,33 +224,54 @@ function addChatBubble(text) {
   $("chatHistory").appendChild(el);
 }
 
-function resetStreamUI() {
-  state.candidateMap = {};
-  state.top3List = [];
-  state.comparisonTable = null;
-  state.reasonMap = {};
+function resetStreamUI({ preserveOutput = false, userMessage = "" } = {}) {
+  if (!preserveOutput) {
+    state.candidateMap = {};
+    state.top3List = [];
+    state.comparisonTable = null;
+    state.reasonMap = {};
+
+    $("top3Grid").innerHTML = "";
+    $("answerContent").innerHTML = "";
+    if ($("candidateGrid")) $("candidateGrid").innerHTML = "";
+    if ($("comparisonContainer")) $("comparisonContainer").innerHTML = "";
+    if ($("reasonContainer")) $("reasonContainer").innerHTML = "";
+    if ($("introText")) $("introText").textContent = "";
+    if ($("followupText")) $("followupText").textContent = "";
+
+    for (const id of ["candidateSection", "top3Section", "comparisonSection", "reasonSection", "introSection", "followupSection", "answerSection"]) {
+      $(id).style.display = "none";
+    }
+  } else {
+    state.comparisonTable = null;
+    state.reasonMap = {};
+    if ($("candidateGrid")) $("candidateGrid").innerHTML = "";
+    if ($("comparisonContainer")) $("comparisonContainer").innerHTML = "";
+    if ($("reasonContainer")) $("reasonContainer").innerHTML = "";
+    if ($("introText")) $("introText").textContent = "";
+    if ($("followupText")) $("followupText").textContent = "";
+
+    for (const id of ["candidateSection", "comparisonSection", "reasonSection", "introSection", "followupSection"]) {
+      $(id).style.display = "none";
+    }
+    $("top3Section").style.display = state.top3List.length ? "" : "none";
+    $("answerSection").style.display = $("answerContent").innerHTML.trim() ? "" : "none";
+  }
+
   state.pendingPatchBuffer = {};
   state.seenEventIds.clear();
   state.lastSeq = 0;
-  state.answerMarkdown = "";
+  state.currentAnswerMarkdown = "";
   state.answerRenderTimer = null;
+  state.currentAnswerTarget = null;
+  state.currentAnswerBody = null;
   state.activeSidebarRef = null;
 
-  $("top3Grid").innerHTML = "";
-  $("answerContent").innerHTML = "";
   $("eventLog").innerHTML = "";
-  if ($("candidateGrid")) $("candidateGrid").innerHTML = "";
-  if ($("comparisonContainer")) $("comparisonContainer").innerHTML = "";
-  if ($("reasonContainer")) $("reasonContainer").innerHTML = "";
-  if ($("introText")) $("introText").textContent = "";
-  if ($("followupText")) $("followupText").textContent = "";
   if ($("sidebarSellers")) $("sidebarSellers").innerHTML = "";
   if ($("sidebarReviews")) $("sidebarReviews").innerHTML = "";
   closeSidebar();
-
-  for (const id of ["candidateSection", "top3Section", "comparisonSection", "reasonSection", "introSection", "followupSection", "answerSection"]) {
-    $(id).style.display = "none";
-  }
+  startAnswerTurn(userMessage, preserveOutput);
   showStatus("active", "Processing...");
 }
 
@@ -291,14 +315,57 @@ function scheduleAnswerRender() {
 }
 
 function renderAnswer() {
-  const el = $("answerContent");
+  const el = state.currentAnswerBody;
   if (!el) return;
   if (typeof marked !== "undefined" && marked.parse) {
-    el.innerHTML = marked.parse(state.answerMarkdown);
+    el.innerHTML = marked.parse(state.currentAnswerMarkdown);
   } else {
-    el.textContent = state.answerMarkdown;
+    el.textContent = state.currentAnswerMarkdown;
   }
   el.scrollIntoView({ behavior: "smooth", block: "end" });
+}
+
+function startAnswerTurn(userMessage, preserveOutput) {
+  const container = $("answerContent");
+  if (!container) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "answer-turn";
+
+  if (preserveOutput && container.childElementCount > 0) {
+    container.appendChild(document.createElement("hr"));
+    const label = document.createElement("div");
+    label.className = "answer-turn-label";
+    label.textContent = `Follow-up: ${userMessage}`;
+    wrapper.appendChild(label);
+  }
+
+  const body = document.createElement("div");
+  body.className = "answer-turn-body";
+  wrapper.appendChild(body);
+  container.appendChild(wrapper);
+  state.currentAnswerTarget = wrapper;
+  state.currentAnswerBody = body;
+}
+
+function looksLikeComparison(msg) {
+  const lower = (msg || "").trim().toLowerCase();
+  if (!lower) return false;
+  const directPatterns = [
+    "compare", "vs", "difference", "which is better", "better for",
+    "比较", "对比", "哪个好", "哪一个更", "前两个",
+  ];
+  if (directPatterns.some((p) => lower.includes(p))) return true;
+
+  const pairedOrdinalPatterns = [
+    ["first", "second"],
+    ["1st", "2nd"],
+    ["第一个", "第二个"],
+    ["第一", "第二"],
+    ["second", "third"],
+    ["第二", "第三"],
+  ];
+  return pairedOrdinalPatterns.some((pair) => pair.every((token) => lower.includes(token)));
 }
 
 // ── Renderers ────────────────────────────────────────────────

@@ -10,6 +10,9 @@ log = logging.getLogger(__name__)
 
 
 def route_after_cache_read(state: AgentState) -> str:
+    if state.get("_is_comparison"):
+        log.info("  [route] cache_read -> answer_generate (comparison cache hit)")
+        return "answer_generate"
     if state.get("_cache_can_answer"):
         log.info("  [route] cache_read -> product_context_resolve (cache hit)")
         return "product_context_resolve"

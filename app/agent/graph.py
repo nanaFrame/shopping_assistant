@@ -72,6 +72,7 @@ def build_graph() -> StateGraph:
         "local_cache_read",
         route_after_cache_read,
         {
+            "answer_generate": "answer_generate",
             "product_context_resolve": "product_context_resolve",
             "product_search": "product_search",
         },
@@ -169,6 +170,7 @@ async def run_agent_graph(
         "mentioned_products": persisted.get("mentioned_products", []),
         "last_query": persisted.get("last_query"),
         "product_catalog": persisted.get("product_catalog", []),
+        "recommendation_history": persisted.get("recommendation_history", []),
         "product_field_registry": {},
         "cache_refs": {},
         "candidate_products": [],
@@ -181,6 +183,7 @@ async def run_agent_graph(
         "followup_target_product": None,
         "intent": {},
         "query_plan": {},
+        "_is_comparison": False,
     }
 
     # Execute with node-level timing

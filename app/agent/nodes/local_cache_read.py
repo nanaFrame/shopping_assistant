@@ -17,14 +17,37 @@ async def local_cache_read(state: AgentState) -> dict:
     catalog = state.get("product_catalog") or []
     intent = state.get("intent") or {}
     intent_type = intent.get("intent_type", "discovery")
+    comparison_refs = intent.get("comparison_refs") or []
 
     cache_hit_products: list[dict] = []
     field_coverage: dict[str, dict[str, bool]] = {}
     cache_can_answer = False
     stale_cache_usable = False
+    is_comparison = False
+
+    if comparison_refs:
+        loaded_products = []
+        for ref in comparison_refs:
+            entry = cache_store.get(ref)
+            if not entry:
+                continue
+            merged = _merge_cached_entry(ref, entry)
+            if merged:
+                loaded_products.append(merged)
+                field_coverage[ref] = _field_coverage_for_product(merged)
+
+        if loaded_products:
+            cache_hit_products = loaded_products
+            cache_can_answer = True
+            is_comparison = True
+            log.info(
+                "  [local_cache_read] comparison refs hit %d/%d cached products",
+                len(loaded_products),
+                len(comparison_refs),
+            )
 
     # Targeted query on a known product
-    if target_ref and intent_type == "targeted":
+    if not cache_can_answer and target_ref and intent_type == "targeted":
         entry = cache_store.get(target_ref)
         if entry and entry.get("base_card"):
             cache_hit_products.append(entry["base_card"])
@@ -71,4 +94,39 @@ async def local_cache_read(state: AgentState) -> dict:
         "product_field_registry": field_coverage,
         "_cache_can_answer": cache_can_answer,
         "_stale_cache_usable": stale_cache_usable,
+        "_is_comparison": is_comparison,
+    }
+
+
+def _merge_cached_entry(product_ref: str, entry: dict) -> dict:
+    merged = dict(entry.get("base_card") or {})
+    if not merged:
+        merged["product_ref"] = product_ref
+
+    info = entry.get("product_info_snapshot") or {}
+    sellers = entry.get("sellers_snapshot") or {}
+    reviews = entry.get("reviews_snapshot") or {}
+
+    if isinstance(info, dict):
+        merged.update({k: v for k, v in info.items() if v is not None})
+    if isinstance(sellers, dict) and sellers.get("items"):
+        merged["seller_summary"] = sellers["items"]
+    if isinstance(reviews, dict) and reviews:
+        merged["review_summary"] = reviews
+
+    merged["product_ref"] = merged.get("product_ref") or product_ref
+    return merged
+
+
+def _field_coverage_for_product(product: dict) -> dict[str, bool]:
+    return {
+        "title": bool(product.get("title")),
+        "price_current": product.get("price_current") is not None,
+        "image_url": bool(product.get("image_url")),
+        "product_rating_value": product.get("product_rating_value") is not None,
+        "feature_bullets": bool(product.get("feature_bullets")),
+        "spec_highlights": bool(product.get("spec_highlights")),
+        "seller_summary": bool(product.get("seller_summary")),
+        "review_summary": bool(product.get("review_summary")),
+        "description_full": bool(product.get("description_full")),
     }

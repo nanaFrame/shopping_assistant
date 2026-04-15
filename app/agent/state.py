@@ -27,6 +27,7 @@ class AgentState(TypedDict, total=False):
     mentioned_products: list[str]
     followup_target_product: str | None
     product_catalog: list[dict[str, Any]]
+    recommendation_history: list[dict[str, Any]]
     product_field_registry: dict[str, dict[str, bool]]
     cache_refs: dict[str, str]
 
@@ -44,6 +45,7 @@ class AgentState(TypedDict, total=False):
     _cache_can_answer: bool
     _stale_cache_usable: bool
     _scorable_candidates: int
+    _is_comparison: bool
 
     # Diagnostics
     warnings: list[dict[str, Any]]
