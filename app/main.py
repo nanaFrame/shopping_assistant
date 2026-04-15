@@ -5,11 +5,15 @@ from __future__ import annotations
 import logging
 import logging.handlers
 from pathlib import Path
+from urllib.parse import urlparse
 
+import httpx
 from fastapi import FastAPI
+from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.responses import Response
+from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.api.routes import health, sessions, chat, stream
@@ -39,6 +43,7 @@ logging.basicConfig(
 )
 
 settings = get_settings()
+log = logging.getLogger(__name__)
 
 app = FastAPI(title="Shopping Assistant", version="0.1.0")
 
@@ -64,3 +69,33 @@ app.mount("/static", StaticFiles(directory=str(_TEST_PAGE_DIR)), name="static")
 @app.get("/")
 async def index():
     return FileResponse(str(_TEST_PAGE_DIR / "index.html"))
+
+
+@app.get("/api/image")
+async def proxy_image(url: str):
+    """Proxy external product images to avoid hotlink/referrer blocking."""
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise HTTPException(status_code=400, detail="Invalid image URL")
+
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=20.0) as client:
+            resp = await client.get(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 ShoppingAssistant/1.0",
+                    "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+                    "Referer": "",
+                },
+            )
+            resp.raise_for_status()
+    except httpx.HTTPError as exc:
+        log.warning("Image proxy failed for %s: %s", url, exc)
+        raise HTTPException(status_code=502, detail="Failed to fetch image") from exc
+
+    media_type = resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+    return Response(
+        content=resp.content,
+        media_type=media_type,
+        headers={"Cache-Control": "public, max-age=86400"},
+    )

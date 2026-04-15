@@ -296,8 +296,10 @@ function renderAnswer() {
 // ── Renderers ────────────────────────────────────────────────
 function renderProductCard(card, isTop3) {
   const ref = card.product_ref || "";
-  const img = card.image_url
-    ? `<img src="${esc(card.image_url)}" alt="" loading="lazy" />`
+  const imageUrl = card.image_url || "";
+  const proxyImageUrl = imageUrl ? `/api/image?url=${encodeURIComponent(imageUrl)}` : "";
+  const img = imageUrl
+    ? `<img src="${esc(imageUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="if(!this.dataset.proxyLoaded){this.dataset.proxyLoaded='1';this.src='${esc(proxyImageUrl)}';}" />`
     : `<span class="no-img">No image</span>`;
 
   let badgeHtml = "";
