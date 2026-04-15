@@ -7,7 +7,7 @@ services:
     env_file:
       - .env
     volumes:
-      - app-data:/app/data
+      - ./data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5060/healthz')"]
@@ -15,6 +15,3 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-
-volumes:
-  app-data:
