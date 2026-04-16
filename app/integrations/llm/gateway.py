@@ -22,6 +22,7 @@ from app.integrations.llm.prompts import (
 from app.integrations.llm.validators import (
     parse_json_response,
     validate_intent_output,
+    validate_query_build_output,
     validate_score_output,
     validate_reason_output,
     validate_answer_output,
@@ -152,7 +153,7 @@ class LlmGateway:
             soft_preferences=json.dumps(soft_preferences),
             last_query=json.dumps(last_query) if last_query else "null",
         )
-        result = await _call_model("fast", prompt)
+        result = validate_query_build_output(await _call_model("fast", prompt))
         return {
             "query_mode": result.get("query_mode", intent_type),
             "keyword": result.get("keyword", message),

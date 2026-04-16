@@ -57,8 +57,11 @@ Output JSON schema:
 Rules:
 1. Keep keywords concise and search-friendly.
 2. The "keyword" MUST always be in English, even if the user writes in another language. Translate the intent into an English search query.
-3. Do not output raw DataForSEO parameters.
-4. Return ONLY valid JSON."""
+3. `optional_filters.sort_by` is optional. The only supported values are `review_score`, `price_low_to_high`, and `price_high_to_low`.
+4. If you want the default relevance ordering, do not provide `sort_by`. Use `null` or omit the field from `optional_filters`.
+5. Never output unsupported sort values such as `relevance`.
+6. Do not output other raw DataForSEO parameters.
+7. Return ONLY valid JSON."""
 
 CANDIDATE_SCORE_PROMPT = """Task: Score candidate products against user requirements.
 
@@ -161,6 +164,7 @@ Write your response in Markdown. Follow this structure exactly:
 
 2. For each recommended product, write a section with:
    - A heading: ## <rank>. <product title>
+   - The heading MUST include a space after the hashes, for example: `## 1. Product Name`
    - Focus on the product's SPECIFIC ADVANTAGES: what makes it unique, its key technologies, standout features, materials, or design choices. Use the "features" and "specs" fields if available.
    - Briefly mention price and rating, but do NOT make them the main focus — the user can already see those on the product cards.
    - Mention any trade-offs or things to be aware of.

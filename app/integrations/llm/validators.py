@@ -31,6 +31,39 @@ def validate_intent_output(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
+def validate_query_build_output(data: dict[str, Any]) -> dict[str, Any]:
+    valid_modes = {"discovery", "refinement", "targeted"}
+    if data.get("query_mode") not in valid_modes:
+        data["query_mode"] = "discovery"
+
+    if not isinstance(data.get("keyword"), str):
+        data["keyword"] = ""
+
+    must_filters = data.get("must_filters")
+    if not isinstance(must_filters, dict):
+        must_filters = {}
+    data["must_filters"] = must_filters
+
+    optional_filters = data.get("optional_filters")
+    if not isinstance(optional_filters, dict):
+        optional_filters = {}
+
+    allowed_sort_values = {"review_score", "price_low_to_high", "price_high_to_low"}
+    sort_by = optional_filters.get("sort_by")
+    if sort_by is None:
+        optional_filters.pop("sort_by", None)
+    else:
+        normalized_sort = str(sort_by).strip()
+        if normalized_sort not in allowed_sort_values:
+            log.warning("Dropping unsupported sort_by from query_build output: %s", sort_by)
+            optional_filters.pop("sort_by", None)
+        else:
+            optional_filters["sort_by"] = normalized_sort
+
+    data["optional_filters"] = optional_filters
+    return data
+
+
 def validate_score_output(
     data: dict[str, Any], known_refs: set[str]
 ) -> dict[str, Any]:
