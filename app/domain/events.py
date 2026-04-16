@@ -65,6 +65,7 @@ PHASES = (
     "candidate_ready",
     "top3_ready",
     "enriching",
+    "answer_ready",
     "completed",
     "failed",
 )

@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from app.application.session_service import session_service
+from app.application.sidebar_enrichment_service import sidebar_enrichment_service
 from app.domain.events import StreamEvent, EventEntity, EventMeta
 from app.storage.event_buffer import event_buffer
 
@@ -24,6 +25,7 @@ class ChatService:
         turn_id = session_service.new_turn_id()
         stream_id = session_service.new_stream_id()
         event_buffer.create_stream(stream_id, session_id, turn_id)
+        sidebar_enrichment_service.create_stream(stream_id, session_id, turn_id)
         return turn_id, stream_id
 
     async def run_agent(
@@ -53,6 +55,7 @@ class ChatService:
             log.info("=== Agent END (success) === stream=%s", stream_id)
         except Exception:
             log.exception("=== Agent END (FAILED) === stream=%s", stream_id)
+            sidebar_enrichment_service.cancel_stream(stream_id)
             seq = event_buffer.next_seq(stream_id)
             error_event = StreamEvent(
                 stream_id=stream_id,

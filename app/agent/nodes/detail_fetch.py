@@ -1,4 +1,4 @@
-"""DetailFetch — concurrently fetches missing fields for Top 3 products."""
+"""DetailFetch — blocking product_info enrichment for Top 3 products."""
 
 from __future__ import annotations
 
@@ -46,45 +46,11 @@ async def detail_fetch(state: AgentState) -> dict:
                 log.warning("Product info fetch failed for %s: %s", ref, e)
                 return ref, "product_info", None
 
-    async def _fetch_sellers(ref: str, ids: dict) -> tuple[str, str, dict | None]:
-        if not (ids.get("product_id") or ids.get("gid")):
-            return ref, "sellers", None
-        async with semaphore:
-            try:
-                sellers = await dataforseo_gateway.get_sellers(ids)
-                if sellers:
-                    cache_store.update_segment(
-                        ref, "sellers_snapshot", {"items": sellers},
-                        freshness_key="sellers_at",
-                    )
-                return ref, "sellers", sellers
-            except Exception as e:
-                log.warning("Sellers fetch failed for %s: %s", ref, e)
-                return ref, "sellers", None
-
-    async def _fetch_reviews(ref: str, ids: dict) -> tuple[str, str, dict | None]:
-        if not ids.get("gid"):
-            return ref, "reviews", None
-        async with semaphore:
-            try:
-                reviews = await dataforseo_gateway.get_reviews(ids["gid"])
-                if reviews:
-                    cache_store.update_segment(
-                        ref, "reviews_snapshot", reviews,
-                        freshness_key="reviews_at",
-                    )
-                return ref, "reviews", reviews
-            except Exception as e:
-                log.warning("Reviews fetch failed for %s: %s", ref, e)
-                return ref, "reviews", None
-
     all_tasks: list[asyncio.Task] = []
     for ref, ids in product_ids:
         all_tasks.append(asyncio.create_task(_fetch_product_info(ref, ids)))
-        all_tasks.append(asyncio.create_task(_fetch_sellers(ref, ids)))
-        all_tasks.append(asyncio.create_task(_fetch_reviews(ref, ids)))
 
-    log.info("  [detail_fetch] launching %d concurrent requests for %d products",
+    log.info("  [detail_fetch] launching %d product_info requests for %d products",
              len(all_tasks), len(recommended))
 
     done, pending = await asyncio.wait(all_tasks, timeout=timeout)
@@ -112,11 +78,6 @@ async def detail_fetch(state: AgentState) -> dict:
         patches = enrichment_plan["completed"].setdefault(ref, {})
         if endpoint == "product_info":
             patches.update(data)
-        elif endpoint == "sellers":
-            patches["seller_summary"] = data
-            patches["_source"] = "sellers"
-        elif endpoint == "reviews":
-            patches["review_summary"] = data
 
     for ref, patches in enrichment_plan["completed"].items():
         registry.setdefault(ref, {}).update({

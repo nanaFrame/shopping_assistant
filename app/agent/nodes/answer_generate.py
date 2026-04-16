@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from app.application.sidebar_enrichment_service import sidebar_enrichment_service
 from app.agent.state import AgentState
 from app.application.stream_service import stream_service
 
@@ -28,7 +29,8 @@ async def answer_generate(state: AgentState) -> dict:
         msg = _no_results_message(intent, errors)
         log.info("  [answer_generate] no results -> %s", msg[:80])
         stream_service.emit_text_chunk(stid, sid, tid, msg)
-        stream_service.emit_stream_done(stid, sid, tid)
+        stream_service.emit_status(stid, sid, tid, "answer_ready", "Completed")
+        sidebar_enrichment_service.mark_answer_complete(stid)
         return {"final_answer": {"intro_text": msg}}
 
     status_msg = "Comparing selected products..." if is_comparison else "Generating answer..."
@@ -37,6 +39,8 @@ async def answer_generate(state: AgentState) -> dict:
     enrichment = state.get("enrichment_plan") or {}
     enriched_products = _merge_enrichment(recommended, enrichment)
     comparison_products = candidates
+    sidebar_products = comparison_products if is_comparison else recommended
+    background_sidebar = sidebar_enrichment_service.start(stid, sidebar_products)
 
     full_text = ""
     try:
@@ -73,7 +77,13 @@ async def answer_generate(state: AgentState) -> dict:
     for w in warnings:
         stream_service.emit_warning(stid, sid, tid, w.get("message", ""))
 
-    stream_service.emit_stream_done(stid, sid, tid)
+    ready_msg = (
+        "Answer ready. Loading seller and review details..."
+        if background_sidebar
+        else "Completed"
+    )
+    stream_service.emit_status(stid, sid, tid, "answer_ready", ready_msg)
+    sidebar_enrichment_service.mark_answer_complete(stid)
 
     return {
         "final_answer": {

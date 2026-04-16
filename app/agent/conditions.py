@@ -54,7 +54,12 @@ def route_after_enrichment(state: AgentState) -> str:
     for p in recommended:
         ref = p.get("product_ref", "")
         fields = registry.get(ref, {})
-        if not fields.get("feature_bullets") or not fields.get("seller_summary"):
+        has_product_info = (
+            fields.get("feature_bullets")
+            or fields.get("spec_highlights")
+            or fields.get("description_full")
+        )
+        if not has_product_info:
             needs = True
             break
 

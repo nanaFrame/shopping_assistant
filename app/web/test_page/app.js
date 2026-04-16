@@ -196,6 +196,10 @@ function handleEvent(evt) {
 
 // ── Handlers ─────────────────────────────────────────────────
 function handleStatus(evt) {
+  if (evt.phase === "answer_ready") {
+    if (state.currentAnswerMarkdown) renderAnswer();
+    $("sendBtn").disabled = false;
+  }
   showStatus("active", evt.payload.message || evt.phase);
 }
 
@@ -284,6 +288,7 @@ function handleDone() {
   showStatus("done", "Completed");
   if (state.currentAnswerMarkdown) renderAnswer();
   if (eventSource) eventSource.close();
+  eventSource = null;
   $("sendBtn").disabled = false;
 }
 
@@ -599,9 +604,15 @@ function closeSidebar() {
 
 function renderSidebarSellers(sellers, card) {
   const el = $("sidebarSellers");
-  if (!sellers.length && !card.product_url) {
+  const status = card.seller_summary_status || "";
+  if (status === "loading" && !sellers.length && !card.product_url) {
     el.innerHTML = `<div class="sidebar-section-title">Sellers</div>
-      <div class="sidebar-empty">No seller data available yet</div>`;
+      <div class="sidebar-empty">Loading seller data...</div>`;
+    return;
+  }
+  if ((status === "timeout" || status === "unavailable") && !sellers.length && !card.product_url) {
+    el.innerHTML = `<div class="sidebar-section-title">Sellers</div>
+      <div class="sidebar-empty">No seller data available for this product</div>`;
     return;
   }
 
@@ -618,6 +629,9 @@ function renderSidebarSellers(sellers, card) {
       rating_value: null,
       url: card.product_url,
     });
+    if (status === "loading") {
+      html += `<div class="sidebar-empty">Loading more seller offers...</div>`;
+    }
   } else {
     for (const s of sellers) {
       html += renderSellerRow(s);
@@ -651,9 +665,15 @@ function renderSellerRow(s) {
 
 function renderSidebarReviews(review) {
   const el = $("sidebarReviews");
+  const status = review.review_summary_status || state.candidateMap[state.activeSidebarRef]?.review_summary_status || "";
+  if (status === "loading" && (!review || !review.sample_reviews || !review.sample_reviews.length)) {
+    el.innerHTML = `<div class="sidebar-section-title">Reviews</div>
+      <div class="sidebar-empty">Loading reviews...</div>`;
+    return;
+  }
   if (!review || !review.sample_reviews || !review.sample_reviews.length) {
     el.innerHTML = `<div class="sidebar-section-title">Reviews</div>
-      <div class="sidebar-empty">No reviews available yet</div>`;
+      <div class="sidebar-empty">${status === "timeout" ? "Reviews were not ready before the stream ended" : "No reviews available for this product"}</div>`;
     return;
   }
 
