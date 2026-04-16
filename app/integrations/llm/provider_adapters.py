@@ -49,8 +49,10 @@ def _extract_text_value(value: Any) -> list[str]:
     return []
 
 
-def _join_text(parts: list[str]) -> str:
-    return "\n".join(part for part in (p.strip() for p in parts) if part).strip()
+def _join_text(parts: list[str], *, strip: bool = True) -> str:
+    if strip:
+        return "\n".join(part for part in (p.strip() for p in parts) if part).strip()
+    return "".join(parts)
 
 
 def _resolve_api_key(env_name: str, settings: Settings) -> str:
@@ -74,7 +76,11 @@ class BaseProviderAdapter:
         return _join_text(_extract_text_value(getattr(response, "content", response)))
 
     def extract_chunk_text(self, chunk: Any) -> str:
-        return self.extract_text(chunk)
+        """Return raw text from a streaming chunk without stripping whitespace."""
+        return _join_text(
+            _extract_text_value(getattr(chunk, "content", chunk)),
+            strip=False,
+        )
 
 
 class GeminiAdapter(BaseProviderAdapter):
@@ -100,6 +106,12 @@ class GeminiAdapter(BaseProviderAdapter):
         if isinstance(text, str) and text.strip():
             return text.strip()
         return super().extract_text(response)
+
+    def extract_chunk_text(self, chunk: Any) -> str:
+        text = getattr(chunk, "text", None)
+        if isinstance(text, str):
+            return text
+        return super().extract_chunk_text(chunk)
 
 
 class OpenAIAdapter(BaseProviderAdapter):
