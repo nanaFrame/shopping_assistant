@@ -16,6 +16,27 @@ from app.integrations.dataforseo.mappers import (
 
 log = logging.getLogger(__name__)
 
+_PENDING_TASK_STATUSES = {
+    40601: "Task Handed",
+    40602: "Task in Queue",
+}
+
+_RETRYABLE_TASK_STATUSES = {
+    50000: "Internal Error",
+    50301: "3rd Party API Service Unavailable",
+    50303: "Update is in progress",
+    50304: "Function temporarily unavailable",
+    50401: "Internal Error - Timeout",
+}
+
+_FATAL_TASK_STATUSES = {
+    40103: "Task execution failed",
+    40400: "Endpoint not found",
+    40401: "Task not found",
+    40403: "Results expired",
+    40506: "Unknown fields in POST data",
+}
+
 
 class DataForSeoGateway:
     """High-level interface to DataForSEO Google Shopping endpoints."""
@@ -170,21 +191,55 @@ def _extract_items(data: dict) -> list[dict]:
 async def _poll_task(result_path: str, max_attempts: int = 10) -> dict:
     import asyncio
     data: dict = {}
+    last_status = None
     for i in range(max_attempts):
         data = await dataforseo_client.get(result_path)
         tasks = data.get("tasks") or []
         if tasks:
             status = tasks[0].get("status_code")
+            status_message = tasks[0].get("status_message") or ""
+            last_status = status
+            wait_seconds = 2 * (i + 1)
             if status == 20000:
                 log.info("  [DataForSEO] poll attempt %d -> ready (20000)", i + 1)
                 return data
-            if status == 40602:
-                log.info("  [DataForSEO] poll attempt %d -> not ready (40602), waiting %ds", i + 1, 2 * (i + 1))
-                await asyncio.sleep(2 * (i + 1))
+            if status in _PENDING_TASK_STATUSES:
+                log.info(
+                    "  [DataForSEO] poll attempt %d -> pending (%s: %s), waiting %ds",
+                    i + 1,
+                    status,
+                    _PENDING_TASK_STATUSES[status],
+                    wait_seconds,
+                )
+                await asyncio.sleep(wait_seconds)
                 continue
-            log.warning("  [DataForSEO] poll attempt %d -> unexpected status %s", i + 1, status)
+            if status in _RETRYABLE_TASK_STATUSES:
+                log.warning(
+                    "  [DataForSEO] poll attempt %d -> retryable status %s (%s), waiting %ds",
+                    i + 1,
+                    status,
+                    _RETRYABLE_TASK_STATUSES[status],
+                    wait_seconds,
+                )
+                await asyncio.sleep(wait_seconds)
+                continue
+            if status in _FATAL_TASK_STATUSES:
+                raise RuntimeError(
+                    f"DataForSEO task failed with status {status} "
+                    f"({_FATAL_TASK_STATUSES[status]}): {status_message}"
+                )
+            log.warning(
+                "  [DataForSEO] poll attempt %d -> unknown non-ready status %s (%s), waiting %ds",
+                i + 1,
+                status,
+                status_message,
+                wait_seconds,
+            )
+            await asyncio.sleep(wait_seconds)
+            continue
+        log.warning("  [DataForSEO] poll attempt %d -> empty tasks payload", i + 1)
         return data
-    log.warning("  [DataForSEO] poll exhausted %d attempts", max_attempts)
+    log.warning("  [DataForSEO] poll exhausted %d attempts (last_status=%s)", max_attempts, last_status)
     return data
 
 
