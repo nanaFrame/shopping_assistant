@@ -133,7 +133,7 @@ class StreamConfig(BaseModel):
 class AgentConfig(BaseModel):
     max_candidates: int = 30
     top_n: int = 3
-    detail_fetch_timeout_seconds: int = 10
+    detail_fetch_timeout_seconds: int = 45
     max_concurrent_fetches: int = 5
 
 

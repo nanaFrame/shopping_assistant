@@ -78,23 +78,28 @@ async def detail_fetch(state: AgentState) -> dict:
                 log.warning("Reviews fetch failed for %s: %s", ref, e)
                 return ref, "reviews", None
 
-    all_tasks = []
+    all_tasks: list[asyncio.Task] = []
     for ref, ids in product_ids:
-        all_tasks.append(_fetch_product_info(ref, ids))
-        all_tasks.append(_fetch_sellers(ref, ids))
-        all_tasks.append(_fetch_reviews(ref, ids))
+        all_tasks.append(asyncio.create_task(_fetch_product_info(ref, ids)))
+        all_tasks.append(asyncio.create_task(_fetch_sellers(ref, ids)))
+        all_tasks.append(asyncio.create_task(_fetch_reviews(ref, ids)))
 
     log.info("  [detail_fetch] launching %d concurrent requests for %d products",
              len(all_tasks), len(recommended))
 
-    try:
-        results = await asyncio.wait_for(
-            asyncio.gather(*all_tasks, return_exceptions=True),
-            timeout=timeout,
+    done, pending = await asyncio.wait(all_tasks, timeout=timeout)
+    if pending:
+        log.warning(
+            "DetailFetch timed out after %ds; preserving %d completed tasks and cancelling %d pending tasks",
+            timeout,
+            len(done),
+            len(pending),
         )
-    except asyncio.TimeoutError:
-        log.warning("DetailFetch timed out after %ds", timeout)
-        results = []
+        for task in pending:
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+
+    results = [task.result() for task in done if not task.cancelled()]
 
     for result in results:
         if isinstance(result, Exception):

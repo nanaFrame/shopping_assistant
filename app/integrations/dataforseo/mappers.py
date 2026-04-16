@@ -95,6 +95,8 @@ def map_product_info_response(raw: dict[str, Any]) -> dict[str, Any]:
         result["title"] = raw["title"]
     if raw.get("description"):
         result["description_full"] = raw["description"]
+    if raw.get("image_url"):
+        result["image_url"] = raw["image_url"]
     if raw.get("images"):
         result["images"] = raw["images"]
         if not result.get("image_url"):
@@ -106,15 +108,10 @@ def map_product_info_response(raw: dict[str, Any]) -> dict[str, Any]:
     specs = raw.get("specifications") or []
     spec_dict: dict[str, str] = {}
     brand = None
-    for spec_group in specs:
-        items = spec_group.get("items") or []
-        for s in items:
-            key = s.get("name", "")
-            val = s.get("value", "")
-            if key and val:
-                spec_dict[key] = val
-                if key.lower() in ("brand", "manufacturer"):
-                    brand = val
+    for key, val in _iter_product_info_specifications(specs):
+        spec_dict[key] = val
+        if key.lower() in ("brand", "manufacturer"):
+            brand = val
     if spec_dict:
         result["spec_highlights"] = spec_dict
     if brand:
@@ -131,6 +128,33 @@ def map_product_info_response(raw: dict[str, Any]) -> dict[str, Any]:
         result["data_docid"] = str(raw["data_docid"])
 
     return result
+
+
+def _iter_product_info_specifications(
+    specs: list[dict[str, Any]],
+) -> list[tuple[str, str]]:
+    pairs: list[tuple[str, str]] = []
+    for spec in specs:
+        if not isinstance(spec, dict):
+            continue
+
+        # Current DataForSEO Product Info Advanced docs use a flat shape:
+        # specification_name + specification_value.
+        key = str(spec.get("specification_name") or "").strip()
+        val = str(spec.get("specification_value") or "").strip()
+        if key and val:
+            pairs.append((key, val))
+            continue
+
+        # Keep backward compatibility if older responses nest specs under items.
+        for item in spec.get("items") or []:
+            if not isinstance(item, dict):
+                continue
+            nested_key = str(item.get("name") or "").strip()
+            nested_val = str(item.get("value") or "").strip()
+            if nested_key and nested_val:
+                pairs.append((nested_key, nested_val))
+    return pairs
 
 
 # ── Sellers endpoint ──────────────────────────────────────────

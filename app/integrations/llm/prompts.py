@@ -165,6 +165,8 @@ Write your response in Markdown. Follow this structure exactly:
 2. For each recommended product, write a section with:
    - A heading: ## <rank>. <product title>
    - The heading MUST include a space after the hashes, for example: `## 1. Product Name`
+   - After each heading, insert a blank line before the body text.
+   - The heading line must contain ONLY the heading text. Do not continue the paragraph on the same line.
    - Focus on the product's SPECIFIC ADVANTAGES: what makes it unique, its key technologies, standout features, materials, or design choices. Use the "features" and "specs" fields if available.
    - Briefly mention price and rating, but do NOT make them the main focus — the user can already see those on the product cards.
    - Mention any trade-offs or things to be aware of.
@@ -181,6 +183,10 @@ Rules:
 - Prioritize product-specific features and advantages over generic price/rating commentary.
 - Only use facts from the provided data. NEVER invent specifications or features not present in the input.
 - If "features" or "specs" are not available for a product, do your best with the available data but acknowledge the limitation.
+- Use valid Markdown only: separate paragraphs with blank lines.
+- The comparison table must be a real Markdown table: one row per line, including the header row and separator row on their own lines.
+- Do not compress multiple table rows into one paragraph or one line.
+- Put "**Next steps:**" on its own new line after the table.
 - Keep the tone conversational and helpful.
 - Output ONLY Markdown, no JSON, no code fences around the whole response."""
 
@@ -217,6 +223,10 @@ Rules:
 - Use detailed product facts when available: features, specs, description, seller details, and reviews.
 - Only use facts from the provided data. NEVER invent specifications, prices, or review claims.
 - If some data is missing, acknowledge the limitation instead of guessing.
+- Use valid Markdown only: separate paragraphs and sections with blank lines.
+- The comparison table must be a real Markdown table: one row per line, with the header row and separator row each on their own lines.
+- Section headings such as `## Verdict` and `## Trade-offs` must be on their own lines, followed by a blank line before the paragraph text.
+- Put "**Next steps:**" on its own new line after the last section.
 - Output ONLY Markdown, no JSON, no code fences around the whole response."""
 
 PROMPT_SUGGESTIONS_PROMPT = """Task: Generate quick shopping prompt suggestions for a test-page suggestion row.
