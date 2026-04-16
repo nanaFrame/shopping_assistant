@@ -194,13 +194,15 @@ At $99 with a 4.7 rating, it offers solid value. One trade-off is that it lacks 
    - Briefly mention price and rating, but do NOT make them the main focus.
    - Mention any trade-offs or things to be aware of.
 
-3. A comparison table in Markdown format. Here is the EXACT format you must follow (each row on its own line):
+3. A comparison table in Markdown format. You MUST wrap the entire table with these exact hidden markers:
 
+<!--TABLE_START-->
 | Feature | Product A | Product B | Product C |
 |---------|-----------|-----------|-----------|
 | Price | $99 | $149 | $199 |
 | Rating | 4.5 | 4.8 | 4.6 |
 | Key Tech | Example 1 | Example 2 | Example 3 |
+<!--TABLE_END-->
 
    Replace the example data with actual product data. Include rows for key differentiators (e.g. key technology, weight, material, use case) in addition to Price and Rating.
 
@@ -214,6 +216,7 @@ Rules:
 - STRICT SPACING: Double-check that every word is separated by a space. Never concatenate words like "guidanceand" or "italso" — always write "guidance and", "it also".
 - STRICT MARKDOWN FORMATTING: You MUST insert a blank empty line between every paragraph, before and after every heading, and before and after the table. Follow the product section example above exactly.
 - STRICT TABLE FORMATTING: Each table row MUST be on its own separate line. Output the table EXACTLY like the example above — one `|...|` row per line, never two rows on the same line.
+- The hidden markers `<!--TABLE_START-->` and `<!--TABLE_END-->` MUST each be on their own separate lines, directly surrounding the table, with no extra text on those lines.
 - Put "**Next steps:**" on its own completely new line, separated from the end of the table by a blank line.
 - Keep the tone conversational and helpful.
 - Output ONLY Markdown, no JSON, no code fences around the whole response."""
@@ -234,12 +237,14 @@ Write your response in Markdown. Follow this structure exactly:
 
 1. A brief opening paragraph that answers the user's comparison question directly.
 
-2. A comparison table in Markdown format. Here is the EXACT format you must follow (each row on its own line):
+2. A comparison table in Markdown format. You MUST wrap the entire table with these exact hidden markers:
 
+<!--TABLE_START-->
 | Dimension | Product A | Product B |
 |-----------|-----------|-----------|
 | Price | $99 | $149 |
 | Rating | 4.5 | 4.8 |
+<!--TABLE_END-->
 
    Add more columns if there are more products. Replace the example data with actual product data.
    Include dimensions that are relevant to the user's question, plus Price and Rating when available.
@@ -259,6 +264,7 @@ Rules:
 - STRICT SPACING: Double-check that every word is separated by a space. Never concatenate words like "guidanceand" or "italso" — always write "guidance and", "it also".
 - STRICT MARKDOWN FORMATTING: You MUST insert a blank empty line between every paragraph, before and after every heading, and before and after the table.
 - STRICT TABLE FORMATTING: Each table row MUST be on its own separate line. Output the table EXACTLY like the example above — one `|...|` row per line, never two rows on the same line.
+- The hidden markers `<!--TABLE_START-->` and `<!--TABLE_END-->` MUST each be on their own separate lines, directly surrounding the table, with no extra text on those lines.
 - Section headings such as `## Verdict` and `## Trade-offs` must be on their own lines, followed by a blank line before the paragraph text.
 - Put "**Next steps:**" on its own completely new line, separated from the end of the table by a blank line.
 - Output ONLY Markdown, no JSON, no code fences around the whole response."""

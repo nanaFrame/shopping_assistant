@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any, AsyncIterator
 
 from app.config import get_settings
@@ -30,6 +31,9 @@ from app.integrations.llm.validators import (
 )
 
 log = logging.getLogger(__name__)
+
+_TABLE_START_MARKER = "<!--TABLE_START-->"
+_TABLE_END_MARKER = "<!--TABLE_END-->"
 
 
 def _format_recommendation_history(history: list[dict[str, Any]] | None) -> str:
@@ -117,6 +121,86 @@ async def _stream_model(
             yield text
 
     log.info("  [LLM] stream %s complete, total_len=%d", model_type, total_len)
+
+
+def _normalize_hidden_table_block(block: str) -> str:
+    text = block.replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not text:
+        return ""
+
+    separator_match = re.search(r"\|(?:\s*[-:]+\s*\|){2,}", text)
+    if not separator_match:
+        return f"\n\n{text}\n\n"
+
+    header_part = text[:separator_match.start()]
+    body_part = text[separator_match.end():]
+
+    header_cells = [cell.strip() for cell in header_part.split("|") if cell.strip()]
+    if len(header_cells) < 2:
+        return f"\n\n{text}\n\n"
+
+    col_count = len(header_cells)
+    separator_row = "|" + "|".join(["---"] * col_count) + "|"
+
+    body_cells = [cell.strip() for cell in body_part.split("|") if cell.strip()]
+    rows: list[str] = []
+    for i in range(0, len(body_cells), col_count):
+        chunk = body_cells[i:i + col_count]
+        if len(chunk) != col_count:
+            break
+        rows.append("| " + " | ".join(chunk) + " |")
+
+    normalized_lines = [
+        "| " + " | ".join(header_cells) + " |",
+        separator_row,
+        *rows,
+    ]
+    return "\n\n" + "\n".join(normalized_lines) + "\n\n"
+
+
+async def _stream_markdown_with_table_normalization(
+    model_type: str, prompt: str
+) -> AsyncIterator[str]:
+    pending = ""
+    inside_table = False
+
+    async for chunk in _stream_model(model_type, prompt):
+        pending += chunk
+
+        while pending:
+            if not inside_table:
+                marker_idx = pending.find(_TABLE_START_MARKER)
+                if marker_idx != -1:
+                    before = pending[:marker_idx]
+                    if before:
+                        yield before
+                    pending = pending[marker_idx + len(_TABLE_START_MARKER):]
+                    inside_table = True
+                    continue
+
+                safe_len = len(pending) - len(_TABLE_START_MARKER)
+                if safe_len > 0:
+                    yield pending[:safe_len]
+                    pending = pending[safe_len:]
+                break
+
+            end_idx = pending.find(_TABLE_END_MARKER)
+            if end_idx == -1:
+                break
+
+            table_block = pending[:end_idx]
+            normalized = _normalize_hidden_table_block(table_block)
+            if normalized:
+                yield normalized
+            pending = pending[end_idx + len(_TABLE_END_MARKER):]
+            inside_table = False
+
+    if inside_table:
+        normalized = _normalize_hidden_table_block(pending)
+        if normalized:
+            yield normalized
+    elif pending:
+        yield pending
 
 
 class LlmGateway:
@@ -307,7 +391,7 @@ class LlmGateway:
             hard_constraints=json.dumps(hard_constraints),
             soft_preferences=json.dumps(soft_preferences),
         )
-        async for chunk in _stream_model("quality", prompt):
+        async for chunk in _stream_markdown_with_table_normalization("quality", prompt):
             yield chunk
 
     async def comparison_stream(
@@ -340,7 +424,7 @@ class LlmGateway:
             hard_constraints=json.dumps(hard_constraints),
             soft_preferences=json.dumps(soft_preferences),
         )
-        async for chunk in _stream_model("quality", prompt):
+        async for chunk in _stream_markdown_with_table_normalization("quality", prompt):
             yield chunk
 
     async def prompt_suggestions(
