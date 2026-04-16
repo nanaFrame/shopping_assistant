@@ -162,11 +162,20 @@ Write your response in Markdown. Follow this structure exactly:
 
 1. A brief opening paragraph (2-3 sentences) summarizing your recommendations.
 
-2. For each recommended product, write a section with:
-   - A heading: `## <rank>. <product title>`
-   - CRITICAL: You MUST place a blank line BEFORE and AFTER every heading.
+2. For each recommended product, write a section following this EXACT layout (note the blank lines):
+
+## 1. Example Product Name
+
+This product stands out because of its unique feature X and material Y. It uses technology Z for improved performance.
+
+At $99 with a 4.7 rating, it offers solid value. One trade-off is that it lacks feature W.
+
+   Replace the example with real product data. Key rules for each product section:
+   - The heading line `## <rank>. <product title>` MUST have a blank line before AND after it.
+   - Each paragraph MUST be separated by a blank line.
+   - NEVER run the heading text directly into the paragraph — there must always be a blank line in between.
    - Focus on the product's SPECIFIC ADVANTAGES: what makes it unique, its key technologies, standout features, materials, or design choices. Use the "features" and "specs" fields if available.
-   - Briefly mention price and rating, but do NOT make them the main focus — the user can already see those on the product cards.
+   - Briefly mention price and rating, but do NOT make them the main focus.
    - Mention any trade-offs or things to be aware of.
 
 3. A comparison table in Markdown format. Here is the EXACT format you must follow (each row on its own line):
@@ -186,7 +195,8 @@ Rules:
 - Prioritize product-specific features and advantages over generic price/rating commentary.
 - Only use facts from the provided data. NEVER invent specifications or features not present in the input.
 - If "features" or "specs" are not available for a product, do your best with the available data but acknowledge the limitation.
-- STRICT MARKDOWN FORMATTING: You MUST use proper line breaks. Always insert a blank empty line between paragraphs, before and after headings, and before and after the table.
+- STRICT SPACING: Double-check that every word is separated by a space. Never concatenate words like "guidanceand" or "italso" — always write "guidance and", "it also".
+- STRICT MARKDOWN FORMATTING: You MUST insert a blank empty line between every paragraph, before and after every heading, and before and after the table. Follow the product section example above exactly.
 - STRICT TABLE FORMATTING: Each table row MUST be on its own separate line. Output the table EXACTLY like the example above — one `|...|` row per line, never two rows on the same line.
 - Put "**Next steps:**" on its own completely new line, separated from the end of the table by a blank line.
 - Keep the tone conversational and helpful.
@@ -230,7 +240,8 @@ Rules:
 - Use detailed product facts when available: features, specs, description, seller details, and reviews.
 - Only use facts from the provided data. NEVER invent specifications, prices, or review claims.
 - If some data is missing, acknowledge the limitation instead of guessing.
-- STRICT MARKDOWN FORMATTING: You MUST use proper line breaks. Always insert a blank empty line between paragraphs, before and after headings, and before and after the table.
+- STRICT SPACING: Double-check that every word is separated by a space. Never concatenate words like "guidanceand" or "italso" — always write "guidance and", "it also".
+- STRICT MARKDOWN FORMATTING: You MUST insert a blank empty line between every paragraph, before and after every heading, and before and after the table.
 - STRICT TABLE FORMATTING: Each table row MUST be on its own separate line. Output the table EXACTLY like the example above — one `|...|` row per line, never two rows on the same line.
 - Section headings such as `## Verdict` and `## Trade-offs` must be on their own lines, followed by a blank line before the paragraph text.
 - Put "**Next steps:**" on its own completely new line, separated from the end of the table by a blank line.
