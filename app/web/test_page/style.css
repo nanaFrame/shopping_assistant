@@ -161,6 +161,45 @@ main {
 .input-area button:active { transform: scale(.97); }
 .input-area button:disabled { opacity: .45; cursor: not-allowed; }
 
+.suggestion-section {
+  margin: -8px 0 16px;
+}
+
+.suggestion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.suggestion-chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .1s;
+}
+
+.suggestion-chip:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.suggestion-chip:active {
+  transform: scale(.98);
+}
+
+.suggestion-chip.loading {
+  min-width: 150px;
+  color: transparent;
+  background: var(--border-light);
+  border-color: var(--border-light);
+  cursor: default;
+  pointer-events: none;
+}
+
 /* Status bar */
 .status-bar {
   padding: 10px 16px;

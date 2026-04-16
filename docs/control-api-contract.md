@@ -7,6 +7,7 @@
 它主要服务于：
 
 - `api.routes.sessions`
+- `api.routes.suggestions`
 - `api.routes.chat`
 - `api.routes.stream`
 - 内置测试页
@@ -181,6 +182,75 @@
   }
 }
 ```
+
+## 6A. `POST /api/prompt-suggestions`
+
+## 6A.1 用途
+
+为测试页或正式前端返回一组同步 JSON suggestions，用于展示快捷输入 chip。
+
+该接口适合：
+
+- 在服务端或其他调用方需要时返回一组本地 suggestions
+- 某一轮 query 成功提交后，基于这轮 query 生成下一组 follow-up suggestions
+
+它不创建 `turn_id`，也不启动流式推荐。
+
+## 6A.2 请求体
+
+```json
+{
+  "count": 6,
+  "locale": "en-US",
+  "session_id": "sess_abc123",
+  "seed_query": "I am planning to go skiing, give me some ski gear recommendations."
+}
+```
+
+字段说明：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `count` | 否 | 返回 suggestions 数量，建议限制在 `1..8` |
+| `locale` | 否 | 语言偏好，当前默认 `en-US` |
+| `session_id` | 否 | 若传入，可用于读取当前会话摘要辅助生成 |
+| `seed_query` | 否 | 当前轮已提交 query，用于生成更贴近当前意图的下一组 suggestions |
+
+## 6A.3 响应体
+
+```json
+{
+  "ok": true,
+  "data": {
+    "suggestions": [
+      {
+        "label": "Ski gear recommendations",
+        "query": "I am planning to go skiing, give me some ski gear recommendations."
+      }
+    ]
+  },
+  "error": null,
+  "meta": {
+    "request_id": "req_001",
+    "server_time": "2026-04-14T10:20:30Z"
+  }
+}
+```
+
+## 6A.4 响应语义
+
+- `label` 用于短文本 chip 展示
+- `query` 用于用户点击后直接填入输入框
+- 当前默认要求 `label` 和 `query` 都返回英文
+- 若未带 `seed_query`，服务端可直接返回本地 suggestion 池中的随机结果
+- 若带有 `seed_query`，suggestions 应尽量体现对当前购物意图的延展、细化或比较方向
+- 内置测试页首轮通常直接使用页面内嵌的本地 suggestion 池，而不是在页面加载时调用该接口
+
+## 6A.5 失败与兜底
+
+- `session_id` 若传入但不存在，返回 `SESSION_NOT_FOUND`
+- `seed_query` 若超过服务端限制，返回 `INVALID_ARGUMENT`
+- 若依赖模型失败，服务端可回退到本地 suggestion 池，而不是让页面无可用建议
 
 ## 7. `POST /api/chat`
 

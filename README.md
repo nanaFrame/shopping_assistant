@@ -1,6 +1,6 @@
 # Shopping Assistant MVP
 
-An AI-powered shopping recommendation backend that uses LangGraph for agent orchestration, DataForSEO for product data, and Google Gemini for intelligent reasoning.
+An AI-powered shopping recommendation backend that uses LangGraph for agent orchestration, DataForSEO for product data, and configurable LLM providers for intelligent reasoning.
 
 ## Quick Start
 
@@ -47,6 +47,21 @@ To update: `git pull && docker compose up -d --build`
 
 - **`.env`** — Sensitive credentials (API keys, passwords)
 - **`config.yaml`** — Business configuration (model params, cache TTL, timeouts)
+
+Example LLM config:
+
+```yaml
+llm:
+  fast:
+    provider: "gemini"
+    model: "gemini-3-flash-preview"
+  quality:
+    provider: "openai"
+    model: "gpt-4.1"
+  suggestion:
+    provider: "qwen"
+    model: "qwen-plus"
+```
 
 ## Architecture
 

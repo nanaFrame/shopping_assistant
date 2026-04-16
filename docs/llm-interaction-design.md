@@ -76,6 +76,27 @@
 - 快模型
 - 质量模型
 
+这里的 `Gemini-first` 代表默认优先使用 Gemini 作为推荐配置，而不是要求业务代码直接耦合 Gemini SDK。
+
+模型选择应通过统一配置层完成，例如在 `config.yaml` 中为每个角色声明：
+
+- `llm.fast.provider` / `llm.fast.model`
+- `llm.quality.provider` / `llm.quality.model`
+- `llm.suggestion.provider` / `llm.suggestion.model`
+
+首批推荐兼容的 provider 至少包括：
+
+- `gemini`
+- `openai`
+- `qwen`
+
+并为后续的：
+
+- `kimi`
+- `glm`
+
+预留扩展位。
+
 ## 4.2 快模型使用边界
 
 适合：
@@ -112,6 +133,18 @@
 - 用质量模型做所有步骤
 - 在大批量候选评分时直接喂完整详情
 - 让推荐理由生成模型重新决定 Top 3
+- 在业务节点中直接写死某个 provider 的 SDK 或专有参数
+- 假设所有 provider 的响应都使用同一个字段，例如统一写死 `response.text`
+
+## 4.5 Provider 适配边界
+
+为避免模型源切换时波及业务层，建议明确以下边界：
+
+- 业务节点只调用统一的 `LlmGateway`
+- `LlmGateway` 只区分 `fast`、`quality`、`suggestion` 这类角色
+- provider adapter 负责处理 Gemini、OpenAI、Qwen 等模型源的初始化差异
+- Gemini 专有参数（例如 `vertexai`）只能留在 Gemini adapter 内部
+- 响应归一化也由 adapter 负责，不让业务层直接依赖 `response.text`、`response.content` 等具体字段
 
 ## 5. 任务划分
 

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Shopping Assistant — Test Page</title>
-  <link rel="stylesheet" href="/static/style.css?v=8" />
+  <link rel="stylesheet" href="/static/style.css?v=9" />
 </head>
 <body>
   <header>
@@ -22,6 +22,10 @@
     <div class="input-area">
       <input id="msgInput" type="text" placeholder="Tell me what you're looking for..." autocomplete="off" />
       <button id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+
+    <div id="suggestionSection" class="suggestion-section" style="display:none">
+      <div id="promptSuggestions" class="suggestion-chips"></div>
     </div>
 
     <!-- Status bar -->
@@ -67,6 +71,7 @@
   </div>
 
   <script src="/static/marked.min.js"></script>
-  <script src="/static/app.js?v=11"></script>
+  <script>window.SUGGESTION_POOL = __SUGGESTION_POOL__;</script>
+  <script src="/static/app.js?v=13"></script>
 </body>
 </html>

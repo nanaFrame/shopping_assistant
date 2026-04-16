@@ -68,3 +68,39 @@ def validate_answer_output(data: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(data.get("intro_text"), str):
         data["intro_text"] = ""
     return data
+
+
+def validate_prompt_suggestions_output(
+    data: dict[str, Any], requested_count: int
+) -> list[dict[str, str]]:
+    valid: list[dict[str, str]] = []
+    seen_queries: set[str] = set()
+
+    for item in data.get("suggestions", []):
+        if not isinstance(item, dict):
+            continue
+
+        label = str(item.get("label", "")).strip()
+        query = str(item.get("query", "")).strip()
+        if not label or not query:
+            continue
+
+        dedupe_key = query.casefold()
+        if dedupe_key in seen_queries:
+            continue
+
+        seen_queries.add(dedupe_key)
+        valid.append(
+            {
+                "label": label[:60],
+                "query": query[:240],
+            }
+        )
+
+        if len(valid) >= requested_count:
+            break
+
+    if not valid:
+        raise ValueError("No valid prompt suggestions returned from LLM")
+
+    return valid

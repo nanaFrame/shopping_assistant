@@ -214,3 +214,31 @@ Rules:
 - Only use facts from the provided data. NEVER invent specifications, prices, or review claims.
 - If some data is missing, acknowledge the limitation instead of guessing.
 - Output ONLY Markdown, no JSON, no code fences around the whole response."""
+
+PROMPT_SUGGESTIONS_PROMPT = """Task: Generate quick shopping prompt suggestions for a test-page suggestion row.
+
+Requested count: {count}
+Locale hint: {locale}
+Latest user query: {seed_query}
+Session summary: {session_summary}
+
+Output JSON schema:
+{{
+  "suggestions": [
+    {{
+      "label": "<short chip label in English>",
+      "query": "<natural user query in English>"
+    }}
+  ]
+}}
+
+Rules:
+1. ALWAYS write both label and query in English.
+2. Return exactly {count} suggestions.
+3. If Latest user query is null, generate broad starter shopping prompts across different product categories.
+4. If Latest user query is present, generate suggestions that are relevant follow-ups: refinements, adjacent product categories, or comparison-oriented prompts inspired by that query.
+5. Keep each label concise, ideally 2-5 words.
+6. Keep each query to one natural sentence that the user could send immediately.
+7. Avoid duplicates and avoid empty filler like "show me products".
+8. Keep every suggestion shopping-related.
+9. Return ONLY valid JSON."""

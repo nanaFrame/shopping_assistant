@@ -18,9 +18,12 @@ const state = {
   currentAnswerTarget: null,
   currentAnswerBody: null,
   activeSidebarRef: null,
+  suggestions: [],
+  suggestionFetchToken: 0,
 };
 
 const $ = (id) => document.getElementById(id);
+const localSuggestionPool = Array.isArray(window.SUGGESTION_POOL) ? window.SUGGESTION_POOL : [];
 
 // ── Send message ─────────────────────────────────────────────
 async function sendMessage() {
@@ -45,6 +48,9 @@ async function sendMessage() {
     const chatResp = await api("/api/chat", { session_id: sessionId, message: msg });
     showStatus("connecting", "Connecting to stream...");
     connectStream(chatResp.stream_url);
+    refreshSuggestions(msg).catch((err) => {
+      logEvent("suggestion_error", 0, "", err.message);
+    });
   } catch (e) {
     showStatus("error", "Error: " + e.message);
     $("sendBtn").disabled = false;
@@ -60,6 +66,84 @@ async function api(url, body) {
   const data = await resp.json();
   if (!data.ok) throw new Error(data.error?.message || "Request failed");
   return data.data;
+}
+
+async function refreshSuggestions(seedQuery = null) {
+  const token = ++state.suggestionFetchToken;
+  renderSuggestionLoading();
+
+  const data = await api("/api/prompt-suggestions", {
+    count: 6,
+    locale: "en-US",
+    session_id: sessionId,
+    seed_query: seedQuery,
+  });
+
+  if (token !== state.suggestionFetchToken) return;
+  state.suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+  renderSuggestions();
+}
+
+function pickRandomSuggestions(pool, count = 6) {
+  if (!Array.isArray(pool) || !pool.length) return [];
+  const shuffled = pool.map((item) => ({ ...item }));
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, Math.min(count, shuffled.length));
+}
+
+function loadInitialSuggestions(count = 6) {
+  state.suggestions = pickRandomSuggestions(localSuggestionPool, count);
+  renderSuggestions();
+}
+
+function renderSuggestionLoading() {
+  const section = $("suggestionSection");
+  const container = $("promptSuggestions");
+  if (!section || !container) return;
+
+  section.style.display = "";
+  container.innerHTML = `
+    <button class="suggestion-chip loading" type="button">Loading</button>
+    <button class="suggestion-chip loading" type="button">Loading</button>
+    <button class="suggestion-chip loading" type="button">Loading</button>
+  `;
+}
+
+function renderSuggestions() {
+  const section = $("suggestionSection");
+  const container = $("promptSuggestions");
+  if (!section || !container) return;
+
+  if (!state.suggestions.length) {
+    section.style.display = "none";
+    container.innerHTML = "";
+    return;
+  }
+
+  section.style.display = "";
+  container.innerHTML = state.suggestions
+    .map((item, idx) => `<button class="suggestion-chip" type="button" data-suggestion-index="${idx}">${esc(item.label || "")}</button>`)
+    .join("");
+
+  container.querySelectorAll("[data-suggestion-index]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      applySuggestion(Number(btn.dataset.suggestionIndex));
+    });
+  });
+}
+
+function applySuggestion(index) {
+  const item = state.suggestions[index];
+  const input = $("msgInput");
+  if (!item || !input) return;
+
+  input.value = item.query || "";
+  input.focus();
+  const caretPos = input.value.length;
+  input.setSelectionRange(caretPos, caretPos);
 }
 
 // ── SSE connection ───────────────────────────────────────────
@@ -639,4 +723,5 @@ document.addEventListener("DOMContentLoaded", () => {
       sendMessage();
     }
   });
+  loadInitialSuggestions();
 });

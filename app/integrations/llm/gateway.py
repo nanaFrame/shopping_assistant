@@ -1,4 +1,4 @@
-"""Unified LLM gateway — calls Gemini models with structured output."""
+"""Unified LLM gateway — calls role-configured chat models."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import logging
 from typing import Any, AsyncIterator
 
 from app.config import get_settings
+from app.integrations.llm.provider_factory import resolve_role_model
 from app.integrations.llm.prompts import (
     SYSTEM_PROMPT,
     INTENT_PARSE_PROMPT,
@@ -16,6 +17,7 @@ from app.integrations.llm.prompts import (
     ANSWER_SUMMARIZE_PROMPT,
     ANSWER_STREAM_PROMPT,
     COMPARISON_STREAM_PROMPT,
+    PROMPT_SUGGESTIONS_PROMPT,
 )
 from app.integrations.llm.validators import (
     parse_json_response,
@@ -23,67 +25,10 @@ from app.integrations.llm.validators import (
     validate_score_output,
     validate_reason_output,
     validate_answer_output,
+    validate_prompt_suggestions_output,
 )
 
 log = logging.getLogger(__name__)
-
-_chat_model_fast = None
-_chat_model_quality = None
-
-
-def _get_fast_model():
-    global _chat_model_fast
-    if _chat_model_fast is None:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        cfg = get_settings()
-        _chat_model_fast = ChatGoogleGenerativeAI(
-            model=cfg.llm.fast_model,
-            temperature=cfg.llm.temperature,
-            google_api_key=cfg.google_api_key,
-            vertexai=True,
-            timeout=cfg.llm.timeout_seconds,
-        )
-    return _chat_model_fast
-
-
-def _get_quality_model():
-    global _chat_model_quality
-    if _chat_model_quality is None:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        cfg = get_settings()
-        _chat_model_quality = ChatGoogleGenerativeAI(
-            model=cfg.llm.quality_model,
-            temperature=cfg.llm.temperature,
-            google_api_key=cfg.google_api_key,
-            vertexai=True,
-            timeout=cfg.llm.timeout_seconds,
-        )
-    return _chat_model_quality
-
-
-def _extract_text(response) -> str:
-    """Extract plain-text from an AIMessage.
-
-    - Gemini 3+:  .content is a list of blocks, .text returns the joined string.
-    - Gemini 2.5-: .content is already a plain string.
-    """
-    if hasattr(response, "text") and isinstance(response.text, str) and response.text:
-        return response.text
-
-    content = getattr(response, "content", None)
-    if isinstance(content, str) and content:
-        return content
-    if isinstance(content, list):
-        parts = []
-        for block in content:
-            if isinstance(block, dict) and block.get("text"):
-                parts.append(block["text"])
-            elif isinstance(block, str):
-                parts.append(block)
-        if parts:
-            return "\n".join(parts)
-
-    return ""
 
 
 def _format_recommendation_history(history: list[dict[str, Any]] | None) -> str:
@@ -115,20 +60,25 @@ async def _call_model(
 ) -> dict[str, Any]:
     cfg = get_settings()
     retries = max_retries if max_retries is not None else cfg.llm.max_retries
-    model = _get_fast_model() if model_type == "fast" else _get_quality_model()
+    resolved = resolve_role_model(model_type)
 
     from langchain_core.messages import SystemMessage, HumanMessage
 
     messages = [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=prompt)]
 
-    model_name = cfg.llm.fast_model if model_type == "fast" else cfg.llm.quality_model
-    log.info("  [LLM] calling %s (%s) prompt_len=%d", model_type, model_name, len(prompt))
+    log.info(
+        "  [LLM] calling %s via %s (%s) prompt_len=%d",
+        model_type,
+        resolved.provider,
+        resolved.model_name,
+        len(prompt),
+    )
 
     last_error: Exception | None = None
     for attempt in range(retries + 1):
         try:
-            response = await model.ainvoke(messages)
-            text = _extract_text(response)
+            response = await resolved.chat_model.ainvoke(messages)
+            text = resolved.adapter.extract_text(response)
             log.info("  [LLM] %s response_len=%d (attempt %d)", model_type, len(text), attempt + 1)
             log.debug("  [LLM] raw text: %s", text[:500])
             parsed = parse_json_response(text)
@@ -144,19 +94,23 @@ async def _stream_model(
     model_type: str, prompt: str, system_prompt: str = SYSTEM_PROMPT
 ) -> AsyncIterator[str]:
     """Stream tokens from an LLM. Yields text chunks as they arrive."""
-    cfg = get_settings()
-    model = _get_fast_model() if model_type == "fast" else _get_quality_model()
+    resolved = resolve_role_model(model_type)
 
     from langchain_core.messages import SystemMessage, HumanMessage
 
     messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
 
-    model_name = cfg.llm.fast_model if model_type == "fast" else cfg.llm.quality_model
-    log.info("  [LLM] streaming %s (%s) prompt_len=%d", model_type, model_name, len(prompt))
+    log.info(
+        "  [LLM] streaming %s via %s (%s) prompt_len=%d",
+        model_type,
+        resolved.provider,
+        resolved.model_name,
+        len(prompt),
+    )
 
     total_len = 0
-    async for chunk in model.astream(messages):
-        text = _extract_text(chunk)
+    async for chunk in resolved.chat_model.astream(messages):
+        text = resolved.adapter.extract_chunk_text(chunk)
         if text:
             total_len += len(text)
             yield text
@@ -384,6 +338,23 @@ class LlmGateway:
         )
         async for chunk in _stream_model("quality", prompt):
             yield chunk
+
+    async def prompt_suggestions(
+        self,
+        *,
+        count: int = 6,
+        locale: str = "en-US",
+        seed_query: str | None = None,
+        session_summary: str = "",
+    ) -> list[dict[str, str]]:
+        prompt = PROMPT_SUGGESTIONS_PROMPT.format(
+            count=count,
+            locale=locale,
+            seed_query=json.dumps(seed_query) if seed_query else "null",
+            session_summary=json.dumps(session_summary or ""),
+        )
+        result = await _call_model("suggestion", prompt)
+        return validate_prompt_suggestions_output(result, count)
 
 
 llm_gateway = LlmGateway()

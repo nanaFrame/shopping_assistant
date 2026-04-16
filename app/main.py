@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import logging.handlers
 from pathlib import Path
@@ -12,11 +13,13 @@ from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
+from app.application.suggestion_pool import SUGGESTION_POOL
 from app.config import get_settings
-from app.api.routes import health, sessions, chat, stream
+from app.api.routes import health, sessions, chat, stream, suggestions
 
 _LOG_DIR = Path(__file__).resolve().parent.parent / "data" / "logs"
 _LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -60,6 +63,7 @@ app.include_router(health.router)
 app.include_router(sessions.router)
 app.include_router(chat.router)
 app.include_router(stream.router)
+app.include_router(suggestions.router)
 
 # Static test page
 _TEST_PAGE_DIR = Path(__file__).parent / "web" / "test_page"
@@ -68,7 +72,13 @@ app.mount("/static", StaticFiles(directory=str(_TEST_PAGE_DIR)), name="static")
 
 @app.get("/")
 async def index():
-    return FileResponse(str(_TEST_PAGE_DIR / "index.html"))
+    html = (_TEST_PAGE_DIR / "index.html").read_text(encoding="utf-8")
+    return HTMLResponse(
+        html.replace(
+            "__SUGGESTION_POOL__",
+            json.dumps(SUGGESTION_POOL, ensure_ascii=False),
+        )
+    )
 
 
 @app.get("/api/image")

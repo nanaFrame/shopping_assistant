@@ -4,8 +4,30 @@ server:
   cors_origins: ["*"]
 
 llm:
-  fast_model: "gemini-3-flash-preview"
-  quality_model: "gemini-3-flash-preview"
+  fast:
+    provider: "gemini"
+    model: "gemini-3-flash-preview"
+  quality:
+    provider: "gemini"
+    model: "gemini-3-flash-preview"
+  suggestion:
+    provider: "gemini"
+    model: "gemini-3-flash-preview"
+  providers:
+    gemini:
+      api_key_env: "GOOGLE_API_KEY"
+      vertexai: true
+    openai:
+      api_key_env: "OPENAI_API_KEY"
+    qwen:
+      api_key_env: "QWEN_API_KEY"
+      base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    kimi:
+      api_key_env: "KIMI_API_KEY"
+      base_url: "https://api.moonshot.cn/v1"
+    glm:
+      api_key_env: "GLM_API_KEY"
+      base_url: "https://open.bigmodel.cn/api/paas/v4/"
   temperature: 0.3
   max_retries: 2
   timeout_seconds: 30

@@ -105,3 +105,21 @@ class AnswerSummarizeOutput(BaseModel):
     comparison_summary: str | None = None
     followup_hint: str = ""
     reasons: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
+
+# ── Task 6: prompt_suggestions ────────────────────────────────
+
+class PromptSuggestionsInput(BaseModel):
+    count: int = 6
+    locale: str = "en-US"
+    seed_query: str | None = None
+    session_summary: str = ""
+
+
+class SuggestionItem(BaseModel):
+    label: str
+    query: str
+
+
+class PromptSuggestionsOutput(BaseModel):
+    suggestions: list[SuggestionItem] = Field(default_factory=list)
