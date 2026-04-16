@@ -63,7 +63,7 @@ Rules:
 6. Do not output other raw DataForSEO parameters.
 7. Return ONLY valid JSON."""
 
-CANDIDATE_SCORE_PROMPT = """Task: Score candidate products against user requirements.
+CANDIDATE_SCORE_PROMPT = """Task: Score and rank candidate products against user requirements, selecting the best 3 for distinct roles.
 
 User requirements: {user_requirements}
 Hard constraints: {hard_constraints}
@@ -72,12 +72,19 @@ Soft preferences: {soft_preferences}
 Candidates:
 {candidates}
 
+The top 3 products will be presented to the user with these roles:
+- **#1 Best Overall**: The product that best satisfies ALL user requirements — balancing features, quality, brand reputation, and price.
+- **#2 Best Value**: The product with the best price-to-quality ratio — it should be noticeably more affordable than #1 while still meeting core requirements.
+- **#3 Feature Pick**: A product with standout unique features, specialized technology, or a distinctive trait that sets it apart — even if it is more expensive or niche.
+
 Output JSON schema:
 {{
   "scored_candidates": [
     {{
       "product_ref": "<ref>",
       "score": 0.0-1.0,
+      "recommended_role": "best_overall | best_value | feature_pick | none",
+      "role_reason": "<one sentence explaining why this product fits the role>",
       "matched_constraints": ["<constraint>"],
       "tradeoffs": ["<tradeoff>"],
       "reject": true/false
@@ -86,13 +93,22 @@ Output JSON schema:
   "ranking_confidence": "low | medium | high"
 }}
 
-Rules:
+Scoring rules:
 1. Hard constraint violations should heavily penalize score.
 2. Soft preferences affect ranking, not rejection.
 3. Score must be between 0.0 and 1.0.
 4. Use the "description" field (when available) to evaluate whether a product matches specific feature requirements (e.g. materials, technology, use case).
 5. Do not reference fields not present in the input.
-6. Return ONLY valid JSON."""
+
+Role assignment rules:
+6. Assign "recommended_role" to exactly 3 candidates: one "best_overall", one "best_value", one "feature_pick". All others should be "none".
+7. **User intent takes priority over diversity.** If the user has specific, narrow requirements (e.g. "budget running shoes under $80", "waterproof hiking boots"), all 3 picks MUST closely match those requirements. Do NOT sacrifice relevance for the sake of variety.
+8. **Apply diversity only when the user's query is broad or exploratory** (e.g. "recommend a smartwatch", "good laptops for students"). In that case:
+   - The top 3 should be meaningfully different from each other — avoid 3 very similar products (same brand + same tier + similar specs).
+   - When possible, span different price tiers or brands.
+9. The "best_value" candidate should offer the best price-to-quality ratio among the top 3. It should ideally be more affordable than "best_overall"; if no cheaper alternative meets core requirements, pick the one that delivers the most value per dollar.
+10. The "feature_pick" candidate should have at least one clearly distinctive advantage over the other two (e.g. unique technology, material, design, or use case).
+11. Return ONLY valid JSON."""
 
 REASON_GENERATE_PROMPT = """Task: Generate recommendation reasons for selected products.
 

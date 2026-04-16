@@ -32,23 +32,33 @@ async def intent_parse(state: AgentState) -> dict:
             result.get("needs_external_search"),
             result.get("comparison_refs") or [],
         )
-        return {
-            "intent": result,
-        }
+        return _build_return(result)
     except Exception:
         log.warning("  [intent_parse] LLM failed, using heuristic fallback")
 
     intent_type = _heuristic_intent(message, mentioned)
     comparison_refs = _heuristic_comparison_refs(message, recommendation_history)
     log.info("  [intent_parse] heuristic -> type=%s", intent_type)
+    return _build_return({
+        "intent_type": intent_type,
+        "needs_external_search": intent_type in ("discovery", "refinement"),
+        "needs_detail_fetch": intent_type == "targeted",
+        "followup_target_product": None,
+        "comparison_refs": comparison_refs,
+    })
+
+
+def _build_return(result: dict) -> dict:
+    """Promote constraints extracted by LLM (or left empty by heuristic) to top-level state."""
+    hard = result.get("hard_constraints") or {}
+    soft = result.get("soft_preferences") or {}
+    user_goal = result.get("user_goal", "")
+    log.info("  [intent_parse] constraints -> hard=%s soft=%s goal=%r", hard, soft, user_goal[:80])
     return {
-        "intent": {
-            "intent_type": intent_type,
-            "needs_external_search": intent_type in ("discovery", "refinement"),
-            "needs_detail_fetch": intent_type == "targeted",
-            "followup_target_product": None,
-            "comparison_refs": comparison_refs,
-        },
+        "intent": result,
+        "hard_constraints": hard,
+        "soft_preferences": soft,
+        "user_requirements": {"user_goal": user_goal, **hard, **soft},
     }
 
 

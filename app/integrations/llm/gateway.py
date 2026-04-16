@@ -183,7 +183,7 @@ class LlmGateway:
             }
             desc = c.get("description_excerpt") or ""
             if desc:
-                lc["description"] = desc[:300]
+                lc["description"] = desc
             light_candidates.append(lc)
         prompt = CANDIDATE_SCORE_PROMPT.format(
             user_requirements=json.dumps(user_requirements),
@@ -201,9 +201,12 @@ class LlmGateway:
         for c in candidates:
             ref = c.get("product_ref", "")
             if ref in score_map:
-                c["score"] = score_map[ref].get("score", 0.5)
-                c["matched_constraints"] = score_map[ref].get("matched_constraints", [])
-                c["tradeoffs"] = score_map[ref].get("tradeoffs", [])
+                entry = score_map[ref]
+                c["score"] = entry.get("score", 0.5)
+                c["matched_constraints"] = entry.get("matched_constraints", [])
+                c["tradeoffs"] = entry.get("tradeoffs", [])
+                c["recommended_role"] = entry.get("recommended_role", "none")
+                c["role_reason"] = entry.get("role_reason", "")
         candidates.sort(key=lambda x: x.get("score", 0), reverse=True)
         return candidates
 

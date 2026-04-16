@@ -47,6 +47,10 @@ async def memory_update(state: AgentState) -> dict:
         })
         recommendation_history = recommendation_history[-5:]
 
+    hard = state.get("hard_constraints") or {}
+    soft = state.get("soft_preferences") or {}
+    user_req = state.get("user_requirements") or {}
+
     # Persist to session store
     session_id = state.get("session_id", "")
     if session_id:
@@ -56,6 +60,9 @@ async def memory_update(state: AgentState) -> dict:
             "product_catalog": catalog[-50:],
             "recommendation_history": recommendation_history,
             "last_query": query_plan,
+            "hard_constraints": hard,
+            "soft_preferences": soft,
+            "user_requirements": user_req,
         })
 
     return {
