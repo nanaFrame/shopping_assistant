@@ -169,10 +169,15 @@ Write your response in Markdown. Follow this structure exactly:
    - Briefly mention price and rating, but do NOT make them the main focus — the user can already see those on the product cards.
    - Mention any trade-offs or things to be aware of.
 
-3. A comparison table in Markdown format:
-   | Feature | <Product 1 short name> | <Product 2 short name> | <Product 3 short name> |
-   |---------|------------------------|------------------------|------------------------|
-   Include rows for key differentiators (e.g. key technology, weight, material, use case) in addition to Price and Rating.
+3. A comparison table in Markdown format. Here is the EXACT format you must follow (each row on its own line):
+
+| Feature | Product A | Product B | Product C |
+|---------|-----------|-----------|-----------|
+| Price | $99 | $149 | $199 |
+| Rating | 4.5 | 4.8 | 4.6 |
+| Key Tech | Example 1 | Example 2 | Example 3 |
+
+   Replace the example data with actual product data. Include rows for key differentiators (e.g. key technology, weight, material, use case) in addition to Price and Rating.
 
 4. A final line starting with "**Next steps:**" suggesting what the user could ask next.
 
@@ -182,7 +187,7 @@ Rules:
 - Only use facts from the provided data. NEVER invent specifications or features not present in the input.
 - If "features" or "specs" are not available for a product, do your best with the available data but acknowledge the limitation.
 - STRICT MARKDOWN FORMATTING: You MUST use proper line breaks. Always insert a blank empty line between paragraphs, before and after headings, and before and after the table.
-- STRICT TABLE FORMATTING: The table MUST be formatted with one row per line. You MUST insert a line break at the end of every single table row. Do NOT merge table rows into a single line or paragraph.
+- STRICT TABLE FORMATTING: Each table row MUST be on its own separate line. Output the table EXACTLY like the example above — one `|...|` row per line, never two rows on the same line.
 - Put "**Next steps:**" on its own completely new line, separated from the end of the table by a blank line.
 - Keep the tone conversational and helpful.
 - Output ONLY Markdown, no JSON, no code fences around the whole response."""
@@ -203,9 +208,14 @@ Write your response in Markdown. Follow this structure exactly:
 
 1. A brief opening paragraph that answers the user's comparison question directly.
 
-2. A comparison table in Markdown format:
-   | Dimension | <Product 1 short name> | <Product 2 short name> |
-   Add more columns if there are more products.
+2. A comparison table in Markdown format. Here is the EXACT format you must follow (each row on its own line):
+
+| Dimension | Product A | Product B |
+|-----------|-----------|-----------|
+| Price | $99 | $149 |
+| Rating | 4.5 | 4.8 |
+
+   Add more columns if there are more products. Replace the example data with actual product data.
    Include dimensions that are relevant to the user's question, plus Price and Rating when available.
 
 3. A section named "## Verdict" that gives a clear recommendation and explains why it best matches the user's goal.
@@ -220,10 +230,10 @@ Rules:
 - Use detailed product facts when available: features, specs, description, seller details, and reviews.
 - Only use facts from the provided data. NEVER invent specifications, prices, or review claims.
 - If some data is missing, acknowledge the limitation instead of guessing.
-- Use valid Markdown only: separate paragraphs and sections with blank lines.
-- The comparison table must be a real Markdown table: one row per line, with the header row and separator row each on their own lines.
+- STRICT MARKDOWN FORMATTING: You MUST use proper line breaks. Always insert a blank empty line between paragraphs, before and after headings, and before and after the table.
+- STRICT TABLE FORMATTING: Each table row MUST be on its own separate line. Output the table EXACTLY like the example above — one `|...|` row per line, never two rows on the same line.
 - Section headings such as `## Verdict` and `## Trade-offs` must be on their own lines, followed by a blank line before the paragraph text.
-- Put "**Next steps:**" on its own new line after the last section.
+- Put "**Next steps:**" on its own completely new line, separated from the end of the table by a blank line.
 - Output ONLY Markdown, no JSON, no code fences around the whole response."""
 
 PROMPT_SUGGESTIONS_PROMPT = """Task: Generate quick shopping prompt suggestions for a test-page suggestion row.
