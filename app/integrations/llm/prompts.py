@@ -163,10 +163,8 @@ Write your response in Markdown. Follow this structure exactly:
 1. A brief opening paragraph (2-3 sentences) summarizing your recommendations.
 
 2. For each recommended product, write a section with:
-   - A heading: ## <rank>. <product title>
-   - The heading MUST include a space after the hashes, for example: `## 1. Product Name`
-   - After each heading, insert a blank line before the body text.
-   - The heading line must contain ONLY the heading text. Do not continue the paragraph on the same line.
+   - A heading: `## <rank>. <product title>`
+   - CRITICAL: You MUST place a blank line BEFORE and AFTER every heading.
    - Focus on the product's SPECIFIC ADVANTAGES: what makes it unique, its key technologies, standout features, materials, or design choices. Use the "features" and "specs" fields if available.
    - Briefly mention price and rating, but do NOT make them the main focus — the user can already see those on the product cards.
    - Mention any trade-offs or things to be aware of.
@@ -183,10 +181,9 @@ Rules:
 - Prioritize product-specific features and advantages over generic price/rating commentary.
 - Only use facts from the provided data. NEVER invent specifications or features not present in the input.
 - If "features" or "specs" are not available for a product, do your best with the available data but acknowledge the limitation.
-- Use valid Markdown only: separate paragraphs with blank lines.
-- The comparison table must be a real Markdown table: one row per line, including the header row and separator row on their own lines.
-- Do not compress multiple table rows into one paragraph or one line.
-- Put "**Next steps:**" on its own new line after the table.
+- STRICT MARKDOWN FORMATTING: You MUST use proper line breaks. Always insert a blank empty line between paragraphs, before and after headings, and before and after the table.
+- STRICT TABLE FORMATTING: The table MUST be formatted with one row per line. You MUST insert a line break at the end of every single table row. Do NOT merge table rows into a single line or paragraph.
+- Put "**Next steps:**" on its own completely new line, separated from the end of the table by a blank line.
 - Keep the tone conversational and helpful.
 - Output ONLY Markdown, no JSON, no code fences around the whole response."""
 
