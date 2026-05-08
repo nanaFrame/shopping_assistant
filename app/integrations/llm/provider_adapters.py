@@ -10,6 +10,7 @@ from app.config import (
     GeminiProviderConfig,
     LlmRoleConfig,
     ProviderName,
+    SmartGatewayProviderConfig,
     Settings,
 )
 
@@ -62,6 +63,7 @@ def _resolve_api_key(env_name: str, settings: Settings) -> str:
         "QWEN_API_KEY": settings.qwen_api_key,
         "KIMI_API_KEY": settings.kimi_api_key,
         "GLM_API_KEY": settings.glm_api_key,
+        "LLM_GATEWAY_API_KEY": settings.llm_gateway_api_key,
     }
     return known.get(env_name) or os.getenv(env_name, "")
 
@@ -133,10 +135,18 @@ class OpenAIStyleAdapter(BaseProviderAdapter):
         return _build_openai_style_model(role, settings, provider_cfg)
 
 
+class SmartGatewayAdapter(BaseProviderAdapter):
+    provider_name: ProviderName = "smart_gateway"
+
+    def build_chat_model(self, role: LlmRoleConfig, settings: Settings):
+        provider_cfg: SmartGatewayProviderConfig = settings.llm.providers.smart_gateway
+        return _build_openai_style_model(role, settings, provider_cfg)
+
+
 def _build_openai_style_model(
     role: LlmRoleConfig,
     settings: Settings,
-    provider_cfg: EndpointProviderConfig,
+    provider_cfg: EndpointProviderConfig | SmartGatewayProviderConfig,
 ):
     from langchain_openai import ChatOpenAI
 
@@ -157,4 +167,5 @@ ADAPTERS: dict[ProviderName, BaseProviderAdapter] = {
     "qwen": OpenAIStyleAdapter("qwen"),
     "kimi": OpenAIStyleAdapter("kimi"),
     "glm": OpenAIStyleAdapter("glm"),
+    "smart_gateway": SmartGatewayAdapter(),
 }

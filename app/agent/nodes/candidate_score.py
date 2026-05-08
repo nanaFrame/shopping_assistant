@@ -33,6 +33,8 @@ async def candidate_score(state: AgentState) -> dict:
             user_requirements=requirements,
             hard_constraints=hard,
             soft_preferences=soft,
+            session_id=state.get("session_id"),
+            turn_id=state.get("turn_id"),
         )
         all_scored = scored + remainder
         scorable = len([c for c in all_scored if c.get("score") is not None])

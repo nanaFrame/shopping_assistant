@@ -23,7 +23,7 @@ def _load_yaml() -> dict[str, Any]:
 # ── Sub-models ────────────────────────────────────────────────
 
 
-ProviderName = Literal["gemini", "openai", "qwen", "kimi", "glm"]
+ProviderName = Literal["gemini", "openai", "qwen", "kimi", "glm", "smart_gateway"]
 
 
 class ServerConfig(BaseModel):
@@ -49,6 +49,12 @@ class EndpointProviderConfig(BaseModel):
     base_url: str | None = None
 
 
+class SmartGatewayProviderConfig(BaseModel):
+    api_key_env: str = "LLM_GATEWAY_API_KEY"
+    base_url: str = "http://aigw.fanli.com/smart"
+    project_id: str | None = None
+
+
 class LlmProvidersConfig(BaseModel):
     gemini: GeminiProviderConfig = Field(default_factory=GeminiProviderConfig)
     openai: EndpointProviderConfig = Field(
@@ -71,6 +77,9 @@ class LlmProvidersConfig(BaseModel):
             api_key_env="GLM_API_KEY",
             base_url="https://open.bigmodel.cn/api/paas/v4/",
         )
+    )
+    smart_gateway: SmartGatewayProviderConfig = Field(
+        default_factory=SmartGatewayProviderConfig
     )
 
 
@@ -158,6 +167,8 @@ class Settings(BaseModel):
     qwen_api_key: str = Field(default="")
     kimi_api_key: str = Field(default="")
     glm_api_key: str = Field(default="")
+    llm_gateway_api_key: str = Field(default="")
+    llm_gateway_project_id: str = Field(default="")
 
 
 def _normalize_legacy_llm_config(raw: dict[str, Any]) -> dict[str, Any]:
@@ -204,4 +215,6 @@ def get_settings() -> Settings:
     raw["qwen_api_key"] = os.getenv("QWEN_API_KEY", "")
     raw["kimi_api_key"] = os.getenv("KIMI_API_KEY", "")
     raw["glm_api_key"] = os.getenv("GLM_API_KEY", "")
+    raw["llm_gateway_api_key"] = os.getenv("LLM_GATEWAY_API_KEY", "")
+    raw["llm_gateway_project_id"] = os.getenv("LLM_GATEWAY_PROJECT_ID", "")
     return Settings(**raw)

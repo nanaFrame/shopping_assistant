@@ -38,6 +38,8 @@ async def query_build(state: AgentState) -> dict:
             hard_constraints=hard,
             soft_preferences=soft,
             last_query=state.get("last_query"),
+            session_id=state.get("session_id"),
+            turn_id=state.get("turn_id"),
         )
         log.info("  [query_build] LLM -> keyword=%r filters=%s",
                  result.get("keyword"), result.get("filters"))

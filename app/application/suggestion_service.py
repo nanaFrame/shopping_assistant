@@ -37,6 +37,7 @@ class SuggestionService:
                 locale=locale,
                 seed_query=seed_query,
                 session_summary=session_summary,
+                session_id=session_id,
             )
             return suggestions[:count]
         except Exception:

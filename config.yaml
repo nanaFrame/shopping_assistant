@@ -5,13 +5,13 @@ server:
 
 llm:
   fast:
-    provider: "gemini"
+    provider: "smart_gateway"
     model: "gemini-3-flash-preview"
   quality:
-    provider: "gemini"
+    provider: "smart_gateway"
     model: "gemini-3-flash-preview"
   suggestion:
-    provider: "gemini"
+    provider: "smart_gateway"
     model: "gemini-3-flash-preview"
   providers:
     gemini:
@@ -28,6 +28,9 @@ llm:
     glm:
       api_key_env: "GLM_API_KEY"
       base_url: "https://open.bigmodel.cn/api/paas/v4/"
+    smart_gateway:
+      api_key_env: "LLM_GATEWAY_API_KEY"
+      base_url: "http://aigw.fanli.com/smart"
   temperature: 0.3
   max_retries: 2
   timeout_seconds: 30

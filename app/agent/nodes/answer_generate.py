@@ -52,6 +52,8 @@ async def answer_generate(state: AgentState) -> dict:
                 user_requirements=state.get("user_requirements") or {},
                 hard_constraints=state.get("hard_constraints") or {},
                 soft_preferences=state.get("soft_preferences") or {},
+                session_id=sid,
+                turn_id=tid,
             ):
                 full_text += chunk
                 stream_service.emit_text_chunk(stid, sid, tid, chunk)
@@ -61,6 +63,8 @@ async def answer_generate(state: AgentState) -> dict:
                 user_requirements=state.get("user_requirements") or {},
                 hard_constraints=state.get("hard_constraints") or {},
                 soft_preferences=state.get("soft_preferences") or {},
+                session_id=sid,
+                turn_id=tid,
             ):
                 full_text += chunk
                 stream_service.emit_text_chunk(stid, sid, tid, chunk)

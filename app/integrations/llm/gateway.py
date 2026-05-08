@@ -60,8 +60,41 @@ def _format_recommendation_history(history: list[dict[str, Any]] | None) -> str:
     return "\n".join(lines)
 
 
+def _build_trace_headers(
+    *,
+    feature_tag: str,
+    session_id: str | None = None,
+    turn_id: str | None = None,
+    user_id: str | None = None,
+) -> dict[str, str]:
+    cfg = get_settings()
+    provider_cfg = cfg.llm.providers.smart_gateway
+    project_id = provider_cfg.project_id or cfg.llm_gateway_project_id
+    resolved_user_id = user_id or session_id
+
+    headers: dict[str, str] = {}
+    if project_id:
+        headers["X-Project-ID"] = project_id
+    if resolved_user_id:
+        headers["X-User-ID"] = resolved_user_id
+    if feature_tag:
+        headers["X-Feature-Tag"] = feature_tag
+    if session_id and turn_id:
+        headers["X-Conversation-ID"] = f"{session_id}:{turn_id}"
+    elif session_id:
+        headers["X-Conversation-ID"] = session_id
+    return headers
+
+
 async def _call_model(
-    model_type: str, prompt: str, max_retries: int | None = None
+    model_type: str,
+    prompt: str,
+    max_retries: int | None = None,
+    *,
+    feature_tag: str,
+    session_id: str | None = None,
+    turn_id: str | None = None,
+    user_id: str | None = None,
 ) -> dict[str, Any]:
     cfg = get_settings()
     retries = max_retries if max_retries is not None else cfg.llm.max_retries
@@ -70,19 +103,31 @@ async def _call_model(
     from langchain_core.messages import SystemMessage, HumanMessage
 
     messages = [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=prompt)]
+    headers = (
+        _build_trace_headers(
+            feature_tag=feature_tag,
+            session_id=session_id,
+            turn_id=turn_id,
+            user_id=user_id,
+        )
+        if resolved.provider == "smart_gateway"
+        else {}
+    )
+    invoke_kwargs = {"extra_headers": headers} if headers else {}
 
     log.info(
-        "  [LLM] calling %s via %s (%s) prompt_len=%d",
+        "  [LLM] calling %s via %s (%s) feature=%s prompt_len=%d",
         model_type,
         resolved.provider,
         resolved.model_name,
+        feature_tag,
         len(prompt),
     )
 
     last_error: Exception | None = None
     for attempt in range(retries + 1):
         try:
-            response = await resolved.chat_model.ainvoke(messages)
+            response = await resolved.chat_model.ainvoke(messages, **invoke_kwargs)
             text = resolved.adapter.extract_text(response)
             log.info("  [LLM] %s response_len=%d (attempt %d)", model_type, len(text), attempt + 1)
             log.debug("  [LLM] raw text: %s", text[:500])
@@ -96,7 +141,14 @@ async def _call_model(
 
 
 async def _stream_model(
-    model_type: str, prompt: str, system_prompt: str = SYSTEM_PROMPT
+    model_type: str,
+    prompt: str,
+    system_prompt: str = SYSTEM_PROMPT,
+    *,
+    feature_tag: str,
+    session_id: str | None = None,
+    turn_id: str | None = None,
+    user_id: str | None = None,
 ) -> AsyncIterator[str]:
     """Stream tokens from an LLM. Yields text chunks as they arrive."""
     resolved = resolve_role_model(model_type)
@@ -104,17 +156,29 @@ async def _stream_model(
     from langchain_core.messages import SystemMessage, HumanMessage
 
     messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
+    headers = (
+        _build_trace_headers(
+            feature_tag=feature_tag,
+            session_id=session_id,
+            turn_id=turn_id,
+            user_id=user_id,
+        )
+        if resolved.provider == "smart_gateway"
+        else {}
+    )
+    stream_kwargs = {"extra_headers": headers} if headers else {}
 
     log.info(
-        "  [LLM] streaming %s via %s (%s) prompt_len=%d",
+        "  [LLM] streaming %s via %s (%s) feature=%s prompt_len=%d",
         model_type,
         resolved.provider,
         resolved.model_name,
+        feature_tag,
         len(prompt),
     )
 
     total_len = 0
-    async for chunk in resolved.chat_model.astream(messages):
+    async for chunk in resolved.chat_model.astream(messages, **stream_kwargs):
         text = resolved.adapter.extract_chunk_text(chunk)
         if text:
             total_len += len(text)
@@ -159,12 +223,25 @@ def _normalize_hidden_table_block(block: str) -> str:
 
 
 async def _stream_markdown_with_table_normalization(
-    model_type: str, prompt: str
+    model_type: str,
+    prompt: str,
+    *,
+    feature_tag: str,
+    session_id: str | None = None,
+    turn_id: str | None = None,
+    user_id: str | None = None,
 ) -> AsyncIterator[str]:
     pending = ""
     inside_table = False
 
-    async for chunk in _stream_model(model_type, prompt):
+    async for chunk in _stream_model(
+        model_type,
+        prompt,
+        feature_tag=feature_tag,
+        session_id=session_id,
+        turn_id=turn_id,
+        user_id=user_id,
+    ):
         pending += chunk
 
         while pending:
@@ -212,6 +289,9 @@ class LlmGateway:
         session_summary: str = "",
         mentioned_products: list[str] | None = None,
         recommendation_history: list[dict[str, Any]] | None = None,
+        session_id: str | None = None,
+        turn_id: str | None = None,
+        user_id: str | None = None,
     ) -> dict[str, Any]:
         prompt = INTENT_PARSE_PROMPT.format(
             message=message,
@@ -219,7 +299,14 @@ class LlmGateway:
             mentioned_products=json.dumps(mentioned_products or []),
             recommendation_history=_format_recommendation_history(recommendation_history),
         )
-        result = await _call_model("fast", prompt)
+        result = await _call_model(
+            "fast",
+            prompt,
+            feature_tag="intent_parse",
+            session_id=session_id,
+            turn_id=turn_id,
+            user_id=user_id,
+        )
         return validate_intent_output(result)
 
     async def query_build_assist(
@@ -229,6 +316,9 @@ class LlmGateway:
         hard_constraints: dict[str, Any],
         soft_preferences: dict[str, Any],
         last_query: dict[str, Any] | None = None,
+        session_id: str | None = None,
+        turn_id: str | None = None,
+        user_id: str | None = None,
     ) -> dict[str, Any]:
         prompt = QUERY_BUILD_PROMPT.format(
             message=message,
@@ -237,7 +327,16 @@ class LlmGateway:
             soft_preferences=json.dumps(soft_preferences),
             last_query=json.dumps(last_query) if last_query else "null",
         )
-        result = validate_query_build_output(await _call_model("fast", prompt))
+        result = validate_query_build_output(
+            await _call_model(
+                "fast",
+                prompt,
+                feature_tag="query_build",
+                session_id=session_id,
+                turn_id=turn_id,
+                user_id=user_id,
+            )
+        )
         return {
             "query_mode": result.get("query_mode", intent_type),
             "keyword": result.get("keyword", message),
@@ -255,6 +354,9 @@ class LlmGateway:
         user_requirements: dict[str, Any],
         hard_constraints: dict[str, Any],
         soft_preferences: dict[str, Any],
+        session_id: str | None = None,
+        turn_id: str | None = None,
+        user_id: str | None = None,
     ) -> list[dict[str, Any]]:
         light_candidates = []
         for c in candidates:
@@ -275,7 +377,14 @@ class LlmGateway:
             soft_preferences=json.dumps(soft_preferences),
             candidates=json.dumps(light_candidates, indent=2),
         )
-        result = await _call_model("fast", prompt)
+        result = await _call_model(
+            "fast",
+            prompt,
+            feature_tag="candidate_score",
+            session_id=session_id,
+            turn_id=turn_id,
+            user_id=user_id,
+        )
         known_refs = {c.get("product_ref", "") for c in candidates}
         validated = validate_score_output(result, known_refs)
 
@@ -300,6 +409,9 @@ class LlmGateway:
         user_requirements: dict[str, Any],
         hard_constraints: dict[str, Any],
         enrichment_data: dict[str, Any] | None = None,
+        session_id: str | None = None,
+        turn_id: str | None = None,
+        user_id: str | None = None,
     ) -> dict[str, dict[str, Any]]:
         light_products = [
             {
@@ -318,7 +430,14 @@ class LlmGateway:
             products=json.dumps(light_products, indent=2),
             enrichment_data=json.dumps(enrichment_data or {}),
         )
-        result = await _call_model("quality", prompt)
+        result = await _call_model(
+            "quality",
+            prompt,
+            feature_tag="reason_generate",
+            session_id=session_id,
+            turn_id=turn_id,
+            user_id=user_id,
+        )
         known_refs = {p.get("product_ref", "") for p in recommended_products}
         validated = validate_reason_output(result, known_refs)
 
@@ -339,6 +458,9 @@ class LlmGateway:
         hard_constraints: dict[str, Any],
         soft_preferences: dict[str, Any],
         enrichment_plan: dict[str, Any] | None = None,
+        session_id: str | None = None,
+        turn_id: str | None = None,
+        user_id: str | None = None,
     ) -> dict[str, Any]:
         light_products = [
             {
@@ -356,7 +478,14 @@ class LlmGateway:
             hard_constraints=json.dumps(hard_constraints),
             soft_preferences=json.dumps(soft_preferences),
         )
-        result = await _call_model("quality", prompt)
+        result = await _call_model(
+            "quality",
+            prompt,
+            feature_tag="answer_summarize",
+            session_id=session_id,
+            turn_id=turn_id,
+            user_id=user_id,
+        )
         return validate_answer_output(result)
 
     async def answer_summarize_stream(
@@ -365,6 +494,9 @@ class LlmGateway:
         user_requirements: dict[str, Any],
         hard_constraints: dict[str, Any],
         soft_preferences: dict[str, Any],
+        session_id: str | None = None,
+        turn_id: str | None = None,
+        user_id: str | None = None,
     ) -> AsyncIterator[str]:
         """Stream Markdown answer token-by-token."""
         light_products = []
@@ -391,7 +523,14 @@ class LlmGateway:
             hard_constraints=json.dumps(hard_constraints),
             soft_preferences=json.dumps(soft_preferences),
         )
-        async for chunk in _stream_markdown_with_table_normalization("quality", prompt):
+        async for chunk in _stream_markdown_with_table_normalization(
+            "quality",
+            prompt,
+            feature_tag="answer_generate",
+            session_id=session_id,
+            turn_id=turn_id,
+            user_id=user_id,
+        ):
             yield chunk
 
     async def comparison_stream(
@@ -401,6 +540,9 @@ class LlmGateway:
         user_requirements: dict[str, Any],
         hard_constraints: dict[str, Any],
         soft_preferences: dict[str, Any],
+        session_id: str | None = None,
+        turn_id: str | None = None,
+        user_id: str | None = None,
     ) -> AsyncIterator[str]:
         light_products = []
         for p in products:
@@ -424,7 +566,14 @@ class LlmGateway:
             hard_constraints=json.dumps(hard_constraints),
             soft_preferences=json.dumps(soft_preferences),
         )
-        async for chunk in _stream_markdown_with_table_normalization("quality", prompt):
+        async for chunk in _stream_markdown_with_table_normalization(
+            "quality",
+            prompt,
+            feature_tag="comparison_stream",
+            session_id=session_id,
+            turn_id=turn_id,
+            user_id=user_id,
+        ):
             yield chunk
 
     async def prompt_suggestions(
@@ -434,6 +583,9 @@ class LlmGateway:
         locale: str = "en-US",
         seed_query: str | None = None,
         session_summary: str = "",
+        session_id: str | None = None,
+        turn_id: str | None = None,
+        user_id: str | None = None,
     ) -> list[dict[str, str]]:
         prompt = PROMPT_SUGGESTIONS_PROMPT.format(
             count=count,
@@ -441,7 +593,14 @@ class LlmGateway:
             seed_query=json.dumps(seed_query) if seed_query else "null",
             session_summary=json.dumps(session_summary or ""),
         )
-        result = await _call_model("suggestion", prompt)
+        result = await _call_model(
+            "suggestion",
+            prompt,
+            feature_tag="prompt_suggestions",
+            session_id=session_id,
+            turn_id=turn_id,
+            user_id=user_id,
+        )
         return validate_prompt_suggestions_output(result, count)
 
 

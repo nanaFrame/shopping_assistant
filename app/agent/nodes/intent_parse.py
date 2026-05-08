@@ -25,6 +25,8 @@ async def intent_parse(state: AgentState) -> dict:
             session_summary=state.get("session_summary", ""),
             mentioned_products=mentioned,
             recommendation_history=recommendation_history,
+            session_id=state.get("session_id"),
+            turn_id=state.get("turn_id"),
         )
         log.info(
             "  [intent_parse] LLM -> type=%s, needs_search=%s comparison_refs=%s",

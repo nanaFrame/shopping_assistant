@@ -53,15 +53,22 @@ Example LLM config:
 ```yaml
 llm:
   fast:
-    provider: "gemini"
+    provider: "smart_gateway"
     model: "gemini-3-flash-preview"
   quality:
-    provider: "openai"
-    model: "gpt-4.1"
+    provider: "smart_gateway"
+    model: "gemini-3-flash-preview"
   suggestion:
-    provider: "qwen"
-    model: "qwen-plus"
+    provider: "smart_gateway"
+    model: "gemini-3-flash-preview"
+  providers:
+    smart_gateway:
+      api_key_env: "LLM_GATEWAY_API_KEY"
+      base_url: "http://aigw.fanli.com/smart"
 ```
+
+The smart gateway API key is loaded from `.env` via `LLM_GATEWAY_API_KEY`.
+Set `LLM_GATEWAY_PROJECT_ID` there as the project-level tracing ID.
 
 ## Architecture
 
