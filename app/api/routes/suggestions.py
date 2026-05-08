@@ -28,18 +28,26 @@ async def prompt_suggestions(body: PromptSuggestionsRequest):
             details={"field": "seed_query"},
         ).model_dump()
 
-    if body.session_id:
+    session_id = body.session_id
+    if session_id:
         session = await session_service.get_session(body.session_id)
         if session is None:
             return ApiResponse.fail(
                 "SESSION_NOT_FOUND",
                 f"Session {body.session_id} does not exist",
             ).model_dump()
+    elif seed_query:
+        session_id = await session_service.create_session(
+            client_id="web_test_page",
+            metadata={"entry": "prompt_suggestions"},
+        )
 
     suggestions = await suggestion_service.get_suggestions(
         count=body.count,
         locale=body.locale,
-        session_id=body.session_id,
+        session_id=session_id,
         seed_query=seed_query,
     )
-    return ApiResponse.success({"suggestions": suggestions}).model_dump()
+    return ApiResponse.success(
+        {"suggestions": suggestions, "session_id": session_id}
+    ).model_dump()

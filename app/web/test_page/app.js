@@ -25,6 +25,20 @@ const state = {
 const $ = (id) => document.getElementById(id);
 const localSuggestionPool = Array.isArray(window.SUGGESTION_POOL) ? window.SUGGESTION_POOL : [];
 
+function setSessionId(nextSessionId) {
+  if (!nextSessionId) return;
+  sessionId = nextSessionId;
+  $("sessionBadge").textContent = sessionId.slice(0, 16);
+  $("sessionBadge").style.display = "";
+}
+
+async function ensureSession() {
+  if (sessionId) return sessionId;
+  const sessResp = await api("/api/sessions", {});
+  setSessionId(sessResp.session_id);
+  return sessionId;
+}
+
 // ── Send message ─────────────────────────────────────────────
 async function sendMessage() {
   const input = $("msgInput");
@@ -38,14 +52,10 @@ async function sendMessage() {
   resetStreamUI({ preserveOutput, userMessage: msg });
 
   try {
-    if (!sessionId) {
-      const sessResp = await api("/api/sessions", {});
-      sessionId = sessResp.session_id;
-      $("sessionBadge").textContent = sessionId.slice(0, 16);
-      $("sessionBadge").style.display = "";
-    }
+    await ensureSession();
 
     const chatResp = await api("/api/chat", { session_id: sessionId, message: msg });
+    setSessionId(chatResp.session_id);
     showStatus("connecting", "Connecting to stream...");
     connectStream(chatResp.stream_url);
     refreshSuggestions(msg).catch((err) => {
@@ -71,6 +81,7 @@ async function api(url, body) {
 async function refreshSuggestions(seedQuery = null) {
   const token = ++state.suggestionFetchToken;
   renderSuggestionLoading();
+  if (seedQuery) await ensureSession();
 
   const data = await api("/api/prompt-suggestions", {
     count: 6,
@@ -80,6 +91,7 @@ async function refreshSuggestions(seedQuery = null) {
   });
 
   if (token !== state.suggestionFetchToken) return;
+  if (data.session_id) setSessionId(data.session_id);
   state.suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
   renderSuggestions();
 }

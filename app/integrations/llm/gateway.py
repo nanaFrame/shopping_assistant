@@ -79,11 +79,48 @@ def _build_trace_headers(
         headers["X-User-ID"] = resolved_user_id
     if feature_tag:
         headers["X-Feature-Tag"] = feature_tag
-    if session_id and turn_id:
-        headers["X-Conversation-ID"] = f"{session_id}:{turn_id}"
-    elif session_id:
+    if session_id:
         headers["X-Conversation-ID"] = session_id
     return headers
+
+
+def _build_trace_request_kwargs(
+    *,
+    feature_tag: str,
+    session_id: str | None = None,
+    turn_id: str | None = None,
+    user_id: str | None = None,
+) -> dict[str, Any]:
+    cfg = get_settings()
+    provider_cfg = cfg.llm.providers.smart_gateway
+    project_id = provider_cfg.project_id or cfg.llm_gateway_project_id
+    resolved_user_id = user_id or session_id
+    conversation_id = session_id or resolved_user_id
+
+    metadata = {
+        key: value
+        for key, value in {
+            "project_id": project_id,
+            "user_id": resolved_user_id,
+            "feature_tag": feature_tag,
+            "conversation_id": conversation_id,
+            "turn_id": turn_id,
+        }.items()
+        if value
+    }
+    kwargs: dict[str, Any] = {
+        "extra_headers": _build_trace_headers(
+            feature_tag=feature_tag,
+            session_id=session_id,
+            turn_id=turn_id,
+            user_id=user_id,
+        )
+    }
+    if resolved_user_id:
+        kwargs["user"] = resolved_user_id
+    if metadata:
+        kwargs["metadata"] = metadata
+    return kwargs
 
 
 async def _call_model(
@@ -103,8 +140,8 @@ async def _call_model(
     from langchain_core.messages import SystemMessage, HumanMessage
 
     messages = [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=prompt)]
-    headers = (
-        _build_trace_headers(
+    invoke_kwargs = (
+        _build_trace_request_kwargs(
             feature_tag=feature_tag,
             session_id=session_id,
             turn_id=turn_id,
@@ -113,7 +150,6 @@ async def _call_model(
         if resolved.provider == "smart_gateway"
         else {}
     )
-    invoke_kwargs = {"extra_headers": headers} if headers else {}
 
     log.info(
         "  [LLM] calling %s via %s (%s) feature=%s prompt_len=%d",
@@ -156,8 +192,8 @@ async def _stream_model(
     from langchain_core.messages import SystemMessage, HumanMessage
 
     messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
-    headers = (
-        _build_trace_headers(
+    stream_kwargs = (
+        _build_trace_request_kwargs(
             feature_tag=feature_tag,
             session_id=session_id,
             turn_id=turn_id,
@@ -166,7 +202,6 @@ async def _stream_model(
         if resolved.provider == "smart_gateway"
         else {}
     )
-    stream_kwargs = {"extra_headers": headers} if headers else {}
 
     log.info(
         "  [LLM] streaming %s via %s (%s) feature=%s prompt_len=%d",
